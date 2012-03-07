@@ -67,7 +67,7 @@ void ISR() iv 0x0008h
     // highest priority is the LVP and OVP signals on
     // INT0 and INT1
     if (INTCON3.INT1IF == 1)
-    {
+    {   // INT1 indicates an over voltage problem
 
         INTCON3.INT1IF = 0; // reset the interrupt flag to prevent looping
     }
