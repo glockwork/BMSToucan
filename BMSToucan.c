@@ -50,6 +50,8 @@ const unsigned char V3_BIT = 3;
 const unsigned char V2_BIT = 2;
 const unsigned char V1_BIT = 1;
 const unsigned char CELL_NUM_BIT = 0;
+const unsigned char BMS_QUERY_BIT_1 = 0x81;
+const unsigned char BMS_QUERY_BIT_2 = 0xAA;
 
 /**
 *  The main loop - checks the status of interrupt flags and actions
@@ -79,6 +81,19 @@ void main() {
         }
         if (flag_check_bms) {
             // we need to check the next BMS cell
+            current_cell++; // move to the next cell
+            if(current_cell > NUMBER_OF_CELLS)
+            {
+                current_cell = 1; // move back to the first cell
+            }
+            
+            // query the battery - start by sending the start bits
+            UART1_Write(BMS_QUERY_BIT_1);
+            UART1_Write(BMS_QUERY_BIT_2);
+            
+            // now send the cell group number we are querying (sent twice)
+            UART1_Write(current_cell);
+            UART1_Write(current_cell);
             
         }
         
@@ -227,6 +242,9 @@ void setup()
     // configure the serial baud rate using the baud rate generator
     TXSTA.BRGH = 1; // High speed serial
     SPBRG = 64; // set the baud to 20Mhz / 19200 baud
+    
+    // now perform the uart init
+    UART1_init(19200);
 
     // set up the can module
     TRISB.B3 = 1; // set CANRX for outputting transmission
@@ -244,7 +262,7 @@ void setup()
     // perform CAN bus setup
     CANbus_setup();
 
-    // initialise values
+    // initialise other values
     tx_counter = 0; // reset the transmit counter
     flag_ovp = 0; // no ovp problem
     flag_lvp = 0; // no lvp problem

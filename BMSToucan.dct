@@ -331,6 +331,8 @@ bljfif
 blquantuses16bits
 bmajorrev
 bminorrev
+bms_query_bit_1
+bms_query_bit_2
 bor
 bor_bit
 brgcon1

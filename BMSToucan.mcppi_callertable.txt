@@ -1,5 +1,6 @@
 main
 	setup
+		UART1_Init
 		CANbus_setup
 			CANInitialize
 				CANSetOperationMode
@@ -14,6 +15,7 @@ main
 			CANSetFilter
 				CANIDToRegs
 	reset_candata
+	UART1_Write
 	CANWrite
 		CANIDToRegs
 ISR

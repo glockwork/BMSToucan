@@ -32,7 +32,9 @@ const unsigned char V3_BIT = 3;
 const unsigned char V2_BIT = 2;
 const unsigned char V1_BIT = 1;
 const unsigned char CELL_NUM_BIT = 0;
-#line 61 "C:/Users/mecharius/Dropbox/Projects/HXN-5 BMStoCAN/Code/BMSToucan.c"
+const unsigned char BMS_QUERY_BIT_1 = 0x81;
+const unsigned char BMS_QUERY_BIT_2 = 0xAA;
+#line 63 "C:/Users/mecharius/Dropbox/Projects/HXN-5 BMStoCAN/Code/BMSToucan.c"
 void main() {
 
  setup();
@@ -54,6 +56,19 @@ void main() {
  }
  if (flag_check_bms) {
 
+ current_cell++;
+ if(current_cell > NUMBER_OF_CELLS)
+ {
+ current_cell = 1;
+ }
+
+
+ UART1_Write(BMS_QUERY_BIT_1);
+ UART1_Write(BMS_QUERY_BIT_2);
+
+
+ UART1_Write(current_cell);
+ UART1_Write(current_cell);
 
  }
 
@@ -61,7 +76,7 @@ void main() {
  CanWrite(CAN_ADDRESS, CAN_data, 1, SEND_FLAG);
  }
 }
-#line 96 "C:/Users/mecharius/Dropbox/Projects/HXN-5 BMStoCAN/Code/BMSToucan.c"
+#line 111 "C:/Users/mecharius/Dropbox/Projects/HXN-5 BMStoCAN/Code/BMSToucan.c"
 void ISR() iv 0x0008
 {
 
@@ -90,13 +105,13 @@ void ISR() iv 0x0008
  INTCON.T0IF = 0;
  }
 }
-#line 135 "C:/Users/mecharius/Dropbox/Projects/HXN-5 BMStoCAN/Code/BMSToucan.c"
+#line 150 "C:/Users/mecharius/Dropbox/Projects/HXN-5 BMStoCAN/Code/BMSToucan.c"
 void CANbus_setup()
 {
  char SJW, BRP, Phase_Seg1, Phase_Seg2, Prop_Seg, txt[4];
  unsigned short init_flag;
  long mask;
-#line 143 "C:/Users/mecharius/Dropbox/Projects/HXN-5 BMStoCAN/Code/BMSToucan.c"
+#line 158 "C:/Users/mecharius/Dropbox/Projects/HXN-5 BMStoCAN/Code/BMSToucan.c"
  SJW = 1;
  BRP = 1;
  Phase_Seg1 = 6;
@@ -109,15 +124,15 @@ void CANbus_setup()
  _CAN_CONFIG_DBL_BUFFER_ON &
  _CAN_CONFIG_VALID_STD_MSG &
  _CAN_CONFIG_LINE_FILTER_OFF;
-#line 158 "C:/Users/mecharius/Dropbox/Projects/HXN-5 BMStoCAN/Code/BMSToucan.c"
+#line 173 "C:/Users/mecharius/Dropbox/Projects/HXN-5 BMStoCAN/Code/BMSToucan.c"
  CANInitialize(SJW, BRP, Phase_Seg1, Phase_Seg2, Prop_Seg, init_flag);
-#line 162 "C:/Users/mecharius/Dropbox/Projects/HXN-5 BMStoCAN/Code/BMSToucan.c"
+#line 177 "C:/Users/mecharius/Dropbox/Projects/HXN-5 BMStoCAN/Code/BMSToucan.c"
  CANSetOperationMode(_CAN_MODE_CONFIG, 0xFF);
 
  mask = -1;
-#line 167 "C:/Users/mecharius/Dropbox/Projects/HXN-5 BMStoCAN/Code/BMSToucan.c"
+#line 182 "C:/Users/mecharius/Dropbox/Projects/HXN-5 BMStoCAN/Code/BMSToucan.c"
  CANSetMask(_CAN_MASK_B1, mask, _CAN_CONFIG_STD_MSG);
-#line 170 "C:/Users/mecharius/Dropbox/Projects/HXN-5 BMStoCAN/Code/BMSToucan.c"
+#line 185 "C:/Users/mecharius/Dropbox/Projects/HXN-5 BMStoCAN/Code/BMSToucan.c"
  CANSetMask(_CAN_MASK_B2, mask, _CAN_CONFIG_STD_MSG);
 
 
@@ -130,7 +145,7 @@ void CANbus_setup()
 
  CANSetOperationMode(_CAN_MODE_NORMAL, 0xFF);
 }
-#line 187 "C:/Users/mecharius/Dropbox/Projects/HXN-5 BMStoCAN/Code/BMSToucan.c"
+#line 202 "C:/Users/mecharius/Dropbox/Projects/HXN-5 BMStoCAN/Code/BMSToucan.c"
 void reset_candata()
 {
  int i;
@@ -139,7 +154,7 @@ void reset_candata()
  CAN_data[i] = 0;
  }
 }
-#line 201 "C:/Users/mecharius/Dropbox/Projects/HXN-5 BMStoCAN/Code/BMSToucan.c"
+#line 216 "C:/Users/mecharius/Dropbox/Projects/HXN-5 BMStoCAN/Code/BMSToucan.c"
 void setup()
 {
 
@@ -169,6 +184,9 @@ void setup()
 
  TXSTA.BRGH = 1;
  SPBRG = 64;
+
+
+ UART1_init(19200);
 
 
  TRISB.B3 = 1;
