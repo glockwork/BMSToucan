@@ -9,7 +9,7 @@
 *   When cell information is received from the LifeBatt BMS it is converted
 *   to a can message and retransmitted under address 207.  The message contains
 *   format conforms to the following template:
-*   $0000000207,CELL#,V1,V2,V3,V3,00,00*PARITY
+*   $0000000207,CELL#,V1,V2,V3,V4,LVP_FLAG,OVP_FLAG,00*PARITY
 *
 *   Cell voltages are from 0-255, with a multiplier of 0.05 (e.g. a value of
 *   0xAB is equal to 171 decimal, when multiplied by 0.05 this corresponds to
@@ -21,17 +21,20 @@
 void setup();
 void ISR();
 void CANbus_setup();
+void reset_candata();
 
 // global flags and counters for use with interrupts
-volatile int tx_counter; // counter used for TMR0 overflow
-const int COUNTER_OVERFLOW = 100; // counter overflows after this many loops
-volatile char flag_ovp; // flags an OVP problem raised by the BMS
-volatile char flag_lvp; // flags an LVP problem raised by the BMS
-volatile char flag_check_bms; // flag set when it is time to query a BMS cell
+volatile unsigned int tx_counter; // counter used for TMR0 overflow
+const unsigned int COUNTER_OVERFLOW = 100; // counter overflows after this many loops
+volatile unsigned char flag_ovp; // flags an OVP problem raised by the BMS
+volatile unsigned char flag_lvp; // flags an LVP problem raised by the BMS
+volatile unsigned char flag_check_bms; // flag set when it is time to query a BMS cell
 
 // other global variables
 int current_cell;
 const int NUMBER_OF_CELLS = 18; // the number of battery cells to check
+unsigned char CAN_data[8];
+const long CAN_ADDRESS = 0x88; // the address of this can message
 
 /**
 *  The main loop - checks the status of interrupt flags and actions
@@ -47,15 +50,21 @@ void main() {
     // main loop
     for(;;)
     {
+        // clear previous CAN_data[] values
+        reset_candata();
+        
         // check for flags
         if (flag_ovp) {
             // we have found a OVP problem - send the appropriate CAN message
+            
         }
         if (flag_lvp) {
             // we have found a LVP problem - send the appropriate CAN message
+            
         }
         if (flag_check_bms) {
             // we need to check the next BMS cell
+            
         }
     }
 }
@@ -153,6 +162,18 @@ void CANbus_setup()
       CANSetOperationMode(_CAN_MODE_NORMAL, 0xFF);
 }/* The CANbus is now set up and ready for use  */
 
+
+/*
+* Loops through the CAN data array and clears previous values
+*/
+void reset_candata()
+{
+    int i;
+    for (i = 0; i < 8; i++)
+    {
+        CAN_data[i] = 0;
+    }
+}
 
 
 /**

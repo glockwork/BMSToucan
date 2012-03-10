@@ -13,4 +13,5 @@ main
 				CANIDToRegs
 			CANSetFilter
 				CANIDToRegs
+	reset_candata
 ISR

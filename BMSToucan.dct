@@ -358,6 +358,8 @@ bytetohex
 bytetostr
 c
 c_bit
+can_address
+can_data
 canbus_setup
 cancap
 cancap_bit
@@ -1708,6 +1710,7 @@ resb0_rxb0dlc_bit
 resb1
 resb1_bit
 resb1_rxb0dlc_bit
+reset_candata
 ri
 ri_bit
 rs485master_init
