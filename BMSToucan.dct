@@ -1,4 +1,3 @@
-    
 ______
 ____doifc
 ___boot_delay128k
@@ -22,7 +21,6 @@ __cc2dw
 __cca2aw
 __ccs2s
 __cs2s
-__f16_errno
 __flash_size
 __fzins
 __low_savebsr
@@ -360,6 +358,7 @@ bytetohex
 bytetostr
 c
 c_bit
+canbus_setup
 cancap
 cancap_bit
 cancon
@@ -847,7 +846,6 @@ eid9_txb2eidh_bit
 endrhi
 endrhi_bit
 equals_double
-eraseentry
 errie
 errie_bit
 errif
@@ -888,9 +886,9 @@ expander_write_porta
 expander_write_portab
 expander_write_portb
 f
-f16_boot_template
 f16_filedesc
-f16_sector
+f16_sect
+f16_un
 fabs
 fast
 ferr
@@ -920,12 +918,10 @@ font_glcd_system3x5
 font_glcd_system5x7
 font5x7
 fontsystem5x7_v2
-freadneedsupdate
 free
 free_bit
 freemem
 frexp
-fsect
 fsr0
 fsr0h
 fsr0l
@@ -1101,6 +1097,7 @@ isdigit
 isgraph
 islower
 ispunct
+isr
 isspace
 isupper
 isxdigit
@@ -1210,6 +1207,7 @@ lvdl2
 lvdl2_bit
 lvdl3
 lvdl3_bit
+main
 malloc
 man_break
 man_receive
@@ -1232,14 +1230,11 @@ mm_largestfreememblock
 mm_nrfreeblocksused
 mm_possiblyfragmented
 mm_totalfreememsize
-mmc_fat_activate
 mmc_fat_append
 mmc_fat_assign
 mmc_fat_changedir
-mmc_fat_close
 mmc_fat_delete
 mmc_fat_dir
-mmc_fat_eof
 mmc_fat_exists
 mmc_fat_get_file_date
 mmc_fat_get_file_date_modified
@@ -1247,10 +1242,8 @@ mmc_fat_get_file_size
 mmc_fat_get_swap_file
 mmc_fat_init
 mmc_fat_makedir
-mmc_fat_open
 mmc_fat_quickformat
 mmc_fat_read
-mmc_fat_readn
 mmc_fat_removedir
 mmc_fat_rename
 mmc_fat_renamedir
@@ -1260,6 +1253,7 @@ mmc_fat_seek
 mmc_fat_set_file_date
 mmc_fat_tell
 mmc_fat_write
+mmc_get_file_size
 mmc_get_file_write_sector
 mmc_init
 mmc_init_vars
@@ -1695,7 +1689,6 @@ rec6
 rec6_bit
 rec7
 rec7_bit
-renameentry
 reqop0
 reqop0_bit
 reqop1
@@ -2201,6 +2194,7 @@ setfov32
 setfun32
 setiov3224
 setjmp
+setup
 shorttohex
 shorttostr
 sid0

@@ -33,11 +33,13 @@ Count=0
 [OTHER_FILES]
 Count=0
 [SEARCH_PATH]
-Count=4
-Path0=C:\Program Files\mikroC PRO for PIC\defs\
-Path1=C:\Program Files\mikroC PRO for PIC\uses\P18\
+Count=6
+Path0=c:\Programs\Mikroelektronika\mikroC PRO for PIC\defs\
+Path1=c:\Programs\Mikroelektronika\mikroC PRO for PIC\uses\P18\
 Path2=C:\Users\mecharius\Dropbox\Projects\HXN-5 BMStoCAN\Code\
-Path3=C:\Users\mecharius\Dropbox\Projects\HXN-5 BMStoCAN\
+Path3=C:\Program Files\mikroC PRO for PIC\defs\
+Path4=C:\Program Files\mikroC PRO for PIC\uses\P18\
+Path5=C:\Users\mecharius\Dropbox\Projects\HXN-5 BMStoCAN\
 [HEADER_PATH]
 Count=0
 [HEADERS]

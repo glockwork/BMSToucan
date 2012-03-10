@@ -1,0 +1,16 @@
+main
+	setup
+		CANbus_setup
+			CANInitialize
+				CANSetOperationMode
+				CANSetBaudRate
+				CANSetMask
+					CANIDToRegs
+				CANSetFilter
+					CANIDToRegs
+			CANSetOperationMode
+			CANSetMask
+				CANIDToRegs
+			CANSetFilter
+				CANIDToRegs
+ISR
