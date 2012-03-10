@@ -9,7 +9,12 @@
 *   When cell information is received from the LifeBatt BMS it is converted
 *   to a can message and retransmitted under address 207.  The message contains
 *   format conforms to the following template:
-*   $0000000207,CELL#,V1,V2,V3,V4,LVP_FLAG,OVP_FLAG,00*PARITY
+*   $0000000207,CELL#,V1,V2,V3,V4,ERROR_FLAGS,00,00*PARITY
+*
+*   Error flags are set on bits 0:2 (MSB is bit 7, LHS)
+*     -  B0:  OVP problem if set
+*     -  B1:  LVP problem if set
+*     -  B2:  Comms issues (exceeded MAX_BMS_CHECK_ABORTS) if set
 *
 *   Cell voltages are from 0-255, with a multiplier of 0.05 (e.g. a value of
 *   0xAB is equal to 171 decimal, when multiplied by 0.05 this corresponds to
@@ -23,16 +28,6 @@ void ISR();
 void CANbus_setup();
 void reset_candata();
 
-// global flags and counters for use with interrupts
-volatile unsigned int tx_counter; // counter used for TMR0 overflow
-volatile unsigned char flag_ovp; // flags an OVP problem raised by the BMS
-volatile unsigned char flag_lvp; // flags an LVP problem raised by the BMS
-volatile unsigned char flag_check_bms; // flag set when it is time to query a BMS cell
-
-// other global variables
-int current_cell;
-unsigned char CAN_data[8];
-
 
 // Constants
 const short SEND_FLAG =_CAN_TX_PRIORITY_0 & _CAN_TX_NO_RTR_FRAME;
@@ -43,8 +38,7 @@ const unsigned int COUNTER_OVERFLOW = 38; // counter overflows after this many l
         // as our timer is in 16bit mode this means 65535 instructions between
         // interrupts.  We want to update at 2Hz, and 65535 * 38 is approximately
         // 2.5 million, or 0.5 seconds.
-const unsigned char OVP_BIT = 6; // some constants for addressing CAN_data
-const unsigned char LVP_BIT = 5; // message bits
+const unsigned char BMS_ERROR_BIT = 6; // B0 = OVP, B1 = LVP, B2 = Comms
 const unsigned char V4_BIT = 4;
 const unsigned char V3_BIT = 3;
 const unsigned char V2_BIT = 2;
@@ -52,6 +46,26 @@ const unsigned char V1_BIT = 1;
 const unsigned char CELL_NUM_BIT = 0;
 const unsigned char BMS_QUERY_BIT_1 = 0x81;
 const unsigned char BMS_QUERY_BIT_2 = 0xAA;
+const unsigned char BMS_QUERY_LENGTH = 29; // 29 bits received in a bms query
+const unsigned char MAX_BMS_CHECK_ABORTS = 10; // the number of times we
+                        // can abort a BMS check whilst waiting for BMS data
+                        // beyond this point we can assume an error occurred
+
+
+// global flags and counters for use with interrupts
+volatile unsigned int tx_counter; // counter used for TMR0 overflow
+volatile unsigned char flag_ovp; // flags an OVP problem raised by the BMS
+volatile unsigned char flag_lvp; // flags an LVP problem raised by the BMS
+volatile unsigned char flag_check_bms; // flag set when it is time to query a BMS cell
+unsigned char flag_send_can; // flag set when we have a message to send
+
+// other global variables
+int current_cell; // the current cell we are querying
+unsigned char CAN_data[8];
+unsigned char BMS_buffer[BMS_QUERY_LENGTH]; // an array to hold our BMS buffer
+unsigned char BMS_buffer_idx; // our current position in the BMS buffer
+unsigned char aborted_bms_checks; // the number of consecutive BMS checks skipped
+                                  // because we were waiting on serial data
 
 /**
 *  The main loop - checks the status of interrupt flags and actions
@@ -72,33 +86,65 @@ void main() {
         
         // check for flags
         if (flag_ovp) {
-            // we have found a OVP problem - send the appropriate CAN message
-            CAN_data[OVP_BIT] = 0x01;
+            // we have found an OVP problem - set the appropriate CAN byte
+            CAN_data[BMS_ERROR_BIT].B0 = 1;
         }
         if (flag_lvp) {
-            // we have found a LVP problem - send the appropriate CAN message
-            CAN_data[LVP_BIT] = 0x01;
-        }
-        if (flag_check_bms) {
-            // we need to check the next BMS cell
-            current_cell++; // move to the next cell
-            if(current_cell > NUMBER_OF_CELLS)
-            {
-                current_cell = 1; // move back to the first cell
-            }
-            
-            // query the battery - start by sending the start bits
-            UART1_Write(BMS_QUERY_BIT_1);
-            UART1_Write(BMS_QUERY_BIT_2);
-            
-            // now send the cell group number we are querying (sent twice)
-            UART1_Write(current_cell);
-            UART1_Write(current_cell);
-            
+            // we have found an LVP problem - set the appropriate CAN byte
+            CAN_data[BMS_ERROR_BIT].B1 = 1;
         }
         
-        // write the CAN message
-        CanWrite(CAN_ADDRESS, CAN_data, 1, SEND_FLAG);
+        // now check if we need to update BMS status
+        if (flag_check_bms) {
+            
+            // first check if we are still waiting on data from the last
+            // BMS Query.  If we are then abort this check and increment
+            // our "aborted_bms_checks" counter.  If this counter reaches
+            // MAX_BMS_CHECK_ABORTS we have had an error
+            if (BMS_buffer_idx > 0)
+            {
+                aborted_bms_checks++;
+                
+                // check if we have a timeout error
+                if (aborted_bms_checks > MAX_BMS_CHECK_ABORTS)
+                {
+                    // send a comms error flag, then reset our buffer position
+                    CAN_data[BMS_ERROR_BIT].B2 = 1;
+                    aborted_bms_checks = 0;
+                    BMS_buffer_idx = 0;
+                }
+            } else {
+                aborted_bms_checks = 0; // no checks have been aborted
+
+                // now we need to check the next BMS cell
+                current_cell++; // move to the next cell
+                if(current_cell > NUMBER_OF_CELLS)
+                {
+                    current_cell = 1; // move back to the first cell
+                }
+
+                // query the battery - start by sending the start bits
+                UART1_Write(BMS_QUERY_BIT_1);
+                UART1_Write(BMS_QUERY_BIT_2);
+
+                // now send the cell group number we are querying (sent twice)
+                UART1_Write(current_cell);
+                UART1_Write(current_cell);
+            }
+        }
+        
+        // read serial information if we have any
+        if(UART1_Data_ready())
+        {
+            UART1_read();
+        }
+        
+        // write the CAN message if it is ready
+        if(flag_send_can == 0x01)
+        {
+            CanWrite(CAN_ADDRESS, CAN_data, 1, SEND_FLAG);
+            flag_send_can = 0x00;
+        }
     }
 }
 
@@ -267,5 +313,7 @@ void setup()
     flag_ovp = 0; // no ovp problem
     flag_lvp = 0; // no lvp problem
     flag_check_bms = 0; // don't check BMS
+    flag_send_can = 0; // no can messages to send yet
     current_cell = 1; // start by querying cell #1
+    
 }
