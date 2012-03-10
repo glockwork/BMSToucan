@@ -499,6 +499,7 @@ comstat
 cos
 cose3
 cosh
+counter_overflow
 cren
 cren_bit
 csrc
@@ -1314,6 +1315,7 @@ not_write_bit
 nr_free_blocks
 nrm3232
 nrm4032
+number_of_cells
 oerr
 oerr_bit
 opmode0

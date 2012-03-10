@@ -24,12 +24,14 @@ void CANbus_setup();
 
 // global flags and counters for use with interrupts
 volatile int tx_counter; // counter used for TMR0 overflow
+const int COUNTER_OVERFLOW = 100; // counter overflows after this many loops
 volatile char flag_ovp; // flags an OVP problem raised by the BMS
 volatile char flag_lvp; // flags an LVP problem raised by the BMS
 volatile char flag_check_bms; // flag set when it is time to query a BMS cell
 
 // other global variables
 int current_cell;
+const int NUMBER_OF_CELLS = 18; // the number of battery cells to check
 
 /**
 *  The main loop - checks the status of interrupt flags and actions
@@ -46,6 +48,15 @@ void main() {
     for(;;)
     {
         // check for flags
+        if (flag_ovp) {
+            // we have found a OVP problem - send the appropriate CAN message
+        }
+        if (flag_lvp) {
+            // we have found a LVP problem - send the appropriate CAN message
+        }
+        if (flag_check_bms) {
+            // we need to check the next BMS cell
+        }
     }
 }
 
@@ -75,7 +86,11 @@ void ISR() iv 0x0008
     {
         // increment the counter and check if we have reached the limit
         tx_counter++;
-        
+        if(tx_counter > COUNTER_OVERFLOW)
+        {
+            flag_check_bms = 1;
+            tx_counter = 0;
+        }
         INTCON.T0IF = 0; // reset the TMR0 interrupt flag
     }
 }
@@ -194,6 +209,6 @@ void setup()
     tx_counter = 0; // reset the transmit counter
     flag_ovp = 0; // no ovp problem
     flag_lvp = 0; // no lvp problem
-    flag_check_bms = 0; // don't check the BMS just yet
+    flag_check_bms = 0; // don't check BMS
     current_cell = 1; // start by querying cell #1
 }
