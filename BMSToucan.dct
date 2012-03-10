@@ -338,6 +338,14 @@ bms_error_bit
 bms_query_bit_1
 bms_query_bit_2
 bms_query_length
+bms_v1_b1
+bms_v1_b2
+bms_v2_b1
+bms_v2_b2
+bms_v3_b1
+bms_v3_b2
+bms_v4_b1
+bms_v4_b2
 bor
 bor_bit
 brgcon1

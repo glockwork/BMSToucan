@@ -50,6 +50,14 @@ const unsigned char BMS_QUERY_LENGTH = 29; // 29 bits received in a bms query
 const unsigned char MAX_BMS_CHECK_ABORTS = 10; // the number of times we
                         // can abort a BMS check whilst waiting for BMS data
                         // beyond this point we can assume an error occurred
+const unsigned char BMS_V1_B1 = 3;  // the BMS bytes to read to build our voltage
+const unsigned char BMS_V1_B2 = 4;
+const unsigned char BMS_V2_B1 = 7;
+const unsigned char BMS_V2_B2 = 8;
+const unsigned char BMS_V3_B1 = 11;
+const unsigned char BMS_V3_B2 = 12;
+const unsigned char BMS_V4_B1 = 15;
+const unsigned char BMS_V4_B2 = 16;
 
 
 // global flags and counters for use with interrupts
@@ -136,8 +144,19 @@ void main() {
         // read serial information if we have any
         if(UART1_Data_ready())
         {
+            // read a serial byte
             BMS_buffer[BMS_buffer_idx] = UART1_read();
             BMS_buffer_idx++;
+            
+            // check if we have read a whole message
+            if (BMS_buffer_idx == BMS_QUERY_LENGTH)
+            {
+                // build up the CAN_data based on what we recieved from the BMS
+                
+                flag_send_can = 0x01; // as we have received a full buffer
+                                      // we can send a CAN message
+
+            }
         }
         
         // write the CAN message if it is ready
