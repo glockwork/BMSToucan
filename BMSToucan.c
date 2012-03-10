@@ -25,7 +25,6 @@ void reset_candata();
 
 // global flags and counters for use with interrupts
 volatile unsigned int tx_counter; // counter used for TMR0 overflow
-const unsigned int COUNTER_OVERFLOW = 100; // counter overflows after this many loops
 volatile unsigned char flag_ovp; // flags an OVP problem raised by the BMS
 volatile unsigned char flag_lvp; // flags an LVP problem raised by the BMS
 volatile unsigned char flag_check_bms; // flag set when it is time to query a BMS cell
@@ -39,6 +38,11 @@ unsigned char CAN_data[8];
 const short SEND_FLAG =_CAN_TX_PRIORITY_0 & _CAN_TX_NO_RTR_FRAME;
 const int NUMBER_OF_CELLS = 18; // the number of battery cells to check
 const long CAN_ADDRESS = 0x88; // the address of this can message
+const unsigned int COUNTER_OVERFLOW = 38; // counter overflows after this many loops
+        // this is calculated as we are running at 20MHz which is 5MIPS...
+        // as our timer is in 16bit mode this means 65535 instructions between
+        // interrupts.  We want to update at 2Hz, and 65535 * 38 is approximately
+        // 2.5 million, or 0.5 seconds.
 const unsigned char OVP_BIT = 6; // some constants for addressing CAN_data
 const unsigned char LVP_BIT = 5; // message bits
 const unsigned char V4_BIT = 4;
