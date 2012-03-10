@@ -901,6 +901,9 @@ filhit1_bit
 filhit2
 filhit2_bit
 fixsign32
+flag_check_bms
+flag_lvp
+flag_ovp
 flash_erase_64
 flash_erase_write_64
 flash_read
@@ -3049,6 +3052,7 @@ trmt
 trmt_bit
 tx
 tx_bit
+tx_counter
 tx0ie
 tx0ie_bit
 tx0if

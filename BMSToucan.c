@@ -17,9 +17,16 @@
 */
 
 
+// forward function delcarations
 void setup();
 void ISR();
 void CANbus_setup();
+
+// global variables
+volatile int tx_counter;
+volatile char flag_ovp;
+volatile char flag_lvp;
+volatile char flag_check_bms;
 
 void main() {
     // perform setup
@@ -77,6 +84,12 @@ void setup()
     
     // perform CAN bus setup
     CANbus_setup();
+    
+    // initialise values
+    tx_counter = 0; // reset the transmit counter
+    flag_ovp = 0; // no ovp problem
+    flag_lvp = 0; // no lvp problem
+    flag_check_bms = 0; // don't check the BMS just yet
 }
 
 

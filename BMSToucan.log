@@ -2,38 +2,21 @@
 warning: 0	1501	Specified search path does not exist: 'C:\Program Files\mikroC PRO for PIC\defs'	 
 warning: 0	1501	Specified search path does not exist: 'C:\Program Files\mikroC PRO for PIC\uses\P18'	 
 hint: 0	1139	Available RAM: 1515 [bytes], Available ROM: 32768 [bytes]	 
-diagnostics: 0	122	Compilation Started	P18F258.c
-diagnostics: 2871	123	Compiled Successfully	P18F258.c
-diagnostics: 0	122	Compilation Started	__Lib_Delays.c
-diagnostics: 172	123	Compiled Successfully	__Lib_Delays.c
-diagnostics: 0	122	Compilation Started	__Lib_MemManager.c
-warning: 34	1508	Implicit conversion of int to ptr	__Lib_MemManager.c
-warning: 38	1508	Implicit conversion of int to ptr	__Lib_MemManager.c
-warning: 80	1508	Implicit conversion of int to ptr	__Lib_MemManager.c
-warning: 86	1508	Implicit conversion of int to ptr	__Lib_MemManager.c
-warning: 109	1508	Implicit conversion of int to ptr	__Lib_MemManager.c
-warning: 124	1508	Implicit conversion of int to ptr	__Lib_MemManager.c
-warning: 196	1508	Implicit conversion of int to ptr	__Lib_MemManager.c
-diagnostics: 231	123	Compiled Successfully	__Lib_MemManager.c
-diagnostics: 0	122	Compilation Started	__Lib_GlcdFonts.c
-diagnostics: 1207	123	Compiled Successfully	__Lib_GlcdFonts.c
-diagnostics: 0	122	Compilation Started	__lib_mmcfat16.h
-diagnostics: 5	123	Compiled Successfully	__Lib_MmcFat16Constants.c
 diagnostics: 0	126	All files Preprocessed in 16 ms	 
 diagnostics: 0	122	Compilation Started	BMSToucan.c
 hint: 0	1004	interrupt handler (ISR at 0x0008)	BMSToucan.c
-hint: 114	1163	Variable 'txt' has been declared, but not used	BMSToucan.c
-diagnostics: 158	123	Compiled Successfully	BMSToucan.c
-hint: 114	1164	Variable 'SJW' has been eliminated by optimizer	BMSToucan.c
-hint: 114	1164	Variable 'BRP' has been eliminated by optimizer	BMSToucan.c
-hint: 114	1164	Variable 'Phase_Seg1' has been eliminated by optimizer	BMSToucan.c
-hint: 114	1164	Variable 'Phase_Seg2' has been eliminated by optimizer	BMSToucan.c
-hint: 114	1164	Variable 'Prop_Seg' has been eliminated by optimizer	BMSToucan.c
-hint: 115	1164	Variable 'init_flag' has been eliminated by optimizer	BMSToucan.c
-diagnostics: 0	127	All files Compiled in 31 ms	 
-hint: 0	1144	Used RAM (bytes): 25 (2%)  Free RAM (bytes): 1490 (98%)	Used RAM (bytes): 25 (2%)  Free RAM (bytes): 1490 (98%)
-hint: 0	1144	Used ROM (bytes): 1176 (4%)  Free ROM (bytes): 31592 (96%)	Used ROM (bytes): 1176 (4%)  Free ROM (bytes): 31592 (96%)
+hint: 127	1163	Variable 'txt' has been declared, but not used	BMSToucan.c
+diagnostics: 171	123	Compiled Successfully	BMSToucan.c
+hint: 127	1164	Variable 'SJW' has been eliminated by optimizer	BMSToucan.c
+hint: 127	1164	Variable 'BRP' has been eliminated by optimizer	BMSToucan.c
+hint: 127	1164	Variable 'Phase_Seg1' has been eliminated by optimizer	BMSToucan.c
+hint: 127	1164	Variable 'Phase_Seg2' has been eliminated by optimizer	BMSToucan.c
+hint: 127	1164	Variable 'Prop_Seg' has been eliminated by optimizer	BMSToucan.c
+hint: 128	1164	Variable 'init_flag' has been eliminated by optimizer	BMSToucan.c
+diagnostics: 0	127	All files Compiled in 15 ms	 
+hint: 0	1144	Used RAM (bytes): 30 (2%)  Free RAM (bytes): 1485 (98%)	Used RAM (bytes): 30 (2%)  Free RAM (bytes): 1485 (98%)
+hint: 0	1144	Used ROM (bytes): 1186 (4%)  Free ROM (bytes): 31582 (96%)	Used ROM (bytes): 1186 (4%)  Free ROM (bytes): 31582 (96%)
 diagnostics: 0	125	Project Linked Successfully	BMSToucan.mcppi
-diagnostics: 0	128	Linked in 468 ms	 
-diagnostics: 0	129	Project 'BMSToucan.mcppi' completed: 1061 ms	 
-diagnostics: 0	103	Finished successfully: 10 Mar 2012, 00:19:18	BMSToucan.mcppi
+diagnostics: 0	128	Linked in 406 ms	 
+diagnostics: 0	129	Project 'BMSToucan.mcppi' completed: 515 ms	 
+diagnostics: 0	103	Finished successfully: 10 Mar 2012, 00:26:24	BMSToucan.mcppi
