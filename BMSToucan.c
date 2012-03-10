@@ -152,7 +152,15 @@ void main() {
             if (BMS_buffer_idx == BMS_QUERY_LENGTH)
             {
                 // build up the CAN_data based on what we recieved from the BMS
-                
+                // we need to divide by 256 to convert from 16bit to 8 bit;
+                CAN_data[V1_bit] = ((BMS_buffer[BMS_V1_B2] << 8) &
+                                        BMS_buffer[BMS_V1_B1]) / 256;
+                CAN_data[V2_bit] = ((BMS_buffer[BMS_V2_B2] << 8) &
+                                        BMS_buffer[BMS_V2_B1]) / 256;
+                CAN_data[V3_bit] = ((BMS_buffer[BMS_V3_B2] << 8) &
+                                        BMS_buffer[BMS_V3_B1]) / 256;
+                CAN_data[V4_bit] = ((BMS_buffer[BMS_V4_B2] << 8) &
+                                        BMS_buffer[BMS_V4_B1]) / 256;
                 flag_send_can = 0x01; // as we have received a full buffer
                                       // we can send a CAN message
 
@@ -162,7 +170,11 @@ void main() {
         // write the CAN message if it is ready
         if(flag_send_can == 0x01)
         {
+            // send the message
             CanWrite(CAN_ADDRESS, CAN_data, 1, SEND_FLAG);
+            
+            // reset the flags and counters
+            BMS_buffer_idx = 0;
             flag_send_can = 0x00;
         }
     }
