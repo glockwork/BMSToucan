@@ -47,9 +47,10 @@ const unsigned char CELL_NUM_BIT = 0;
 const unsigned char BMS_QUERY_BIT_1 = 0x81;
 const unsigned char BMS_QUERY_BIT_2 = 0xAA;
 const unsigned char BMS_QUERY_LENGTH = 29; // 29 bits received in a bms query
-const unsigned char MAX_BMS_CHECK_ABORTS = 10; // the number of times we
-                        // can abort a BMS check whilst waiting for BMS data
-                        // beyond this point we can assume an error occurred
+const unsigned char MAX_BMS_CHECK_ABORTS = 10; 
+                        // the number of times we can abort a BMS check whilst
+                        // waiting for BMS data.  Beyond this number of aborts
+                        // we can assume a timeout error has occurred
 const unsigned char BMS_V1_B1 = 3;  // the BMS bytes to read to build our voltage
 const unsigned char BMS_V1_B2 = 4;
 const unsigned char BMS_V2_B1 = 7;
