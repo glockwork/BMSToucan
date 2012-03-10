@@ -503,6 +503,7 @@ cren
 cren_bit
 csrc
 csrc_bit
+current_cell
 cvref
 cvref_bit
 d
