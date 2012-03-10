@@ -2201,6 +2201,7 @@ seg2phts
 seg2phts_bit
 sen
 sen_bit
+send_flag
 setfdz32
 setfov32
 setfun32

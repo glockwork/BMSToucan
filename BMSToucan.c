@@ -36,10 +36,11 @@ unsigned char CAN_data[8];
 
 
 // Constants
+const short SEND_FLAG =_CAN_TX_PRIORITY_0 & _CAN_TX_NO_RTR_FRAME;
 const int NUMBER_OF_CELLS = 18; // the number of battery cells to check
 const long CAN_ADDRESS = 0x88; // the address of this can message
-const unsigned char OVP_BIT = 6;
-const unsigned char LVP_BIT = 5;
+const unsigned char OVP_BIT = 6; // some constants for addressing CAN_data
+const unsigned char LVP_BIT = 5; // message bits
 const unsigned char V4_BIT = 4;
 const unsigned char V3_BIT = 3;
 const unsigned char V2_BIT = 2;
@@ -66,16 +67,19 @@ void main() {
         // check for flags
         if (flag_ovp) {
             // we have found a OVP problem - send the appropriate CAN message
-            
+            CAN_data[OVP_BIT] = 0x01;
         }
         if (flag_lvp) {
             // we have found a LVP problem - send the appropriate CAN message
-            
+            CAN_data[LVP_BIT] = 0x01;
         }
         if (flag_check_bms) {
             // we need to check the next BMS cell
             
         }
+        
+        // write the CAN message
+        CanWrite(CAN_ADDRESS, CAN_data, 1, SEND_FLAG);
     }
 }
 
