@@ -136,7 +136,8 @@ void main() {
         // read serial information if we have any
         if(UART1_Data_ready())
         {
-            UART1_read();
+            BMS_buffer[BMS_buffer_idx] = UART1_read();
+            BMS_buffer_idx++;
         }
         
         // write the CAN message if it is ready

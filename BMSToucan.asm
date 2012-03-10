@@ -102,16 +102,30 @@ L_main5:
 	MOVF        R0, 1 
 	BTFSC       STATUS+0, 2 
 	GOTO        L_main10
-;BMSToucan.c,139 :: 		UART1_read();
+;BMSToucan.c,139 :: 		BMS_buffer[BMS_buffer_idx] = UART1_read();
+	MOVLW       _BMS_buffer+0
+	MOVWF       FLOC__main+0 
+	MOVLW       hi_addr(_BMS_buffer+0)
+	MOVWF       FLOC__main+1 
+	MOVF        _BMS_buffer_idx+0, 0 
+	ADDWF       FLOC__main+0, 1 
+	BTFSC       STATUS+0, 0 
+	INCF        FLOC__main+1, 1 
 	CALL        _UART1_Read+0, 0
-;BMSToucan.c,140 :: 		}
+	MOVFF       FLOC__main+0, FSR1L
+	MOVFF       FLOC__main+1, FSR1H
+	MOVF        R0, 0 
+	MOVWF       POSTINC1+0 
+;BMSToucan.c,140 :: 		BMS_buffer_idx++;
+	INCF        _BMS_buffer_idx+0, 1 
+;BMSToucan.c,141 :: 		}
 L_main10:
-;BMSToucan.c,143 :: 		if(flag_send_can == 0x01)
+;BMSToucan.c,144 :: 		if(flag_send_can == 0x01)
 	MOVF        _flag_send_can+0, 0 
 	XORLW       1
 	BTFSS       STATUS+0, 2 
 	GOTO        L_main11
-;BMSToucan.c,145 :: 		CanWrite(CAN_ADDRESS, CAN_data, 1, SEND_FLAG);
+;BMSToucan.c,146 :: 		CanWrite(CAN_ADDRESS, CAN_data, 1, SEND_FLAG);
 	MOVLW       136
 	MOVWF       FARG_CANWrite_id+0 
 	MOVLW       0
@@ -129,46 +143,46 @@ L_main10:
 	MOVLW       252
 	MOVWF       FARG_CANWrite_CAN_TX_MSG_FLAGS+0 
 	CALL        _CANWrite+0, 0
-;BMSToucan.c,146 :: 		flag_send_can = 0x00;
+;BMSToucan.c,147 :: 		flag_send_can = 0x00;
 	CLRF        _flag_send_can+0 
-;BMSToucan.c,147 :: 		}
-L_main11:
 ;BMSToucan.c,148 :: 		}
-	GOTO        L_main0
+L_main11:
 ;BMSToucan.c,149 :: 		}
+	GOTO        L_main0
+;BMSToucan.c,150 :: 		}
 L_end_main:
 	GOTO        $+0
 ; end of _main
 
 _ISR:
 
-;BMSToucan.c,157 :: 		void ISR() iv 0x0008
-;BMSToucan.c,162 :: 		if (INTCON3.INT1IF == 1)
+;BMSToucan.c,158 :: 		void ISR() iv 0x0008
+;BMSToucan.c,163 :: 		if (INTCON3.INT1IF == 1)
 	BTFSS       INTCON3+0, 0 
 	GOTO        L_ISR12
-;BMSToucan.c,164 :: 		flag_ovp = 1;
+;BMSToucan.c,165 :: 		flag_ovp = 1;
 	MOVLW       1
 	MOVWF       _flag_ovp+0 
-;BMSToucan.c,165 :: 		INTCON3.INT1IF = 0; // reset the interrupt flag to prevent looping
+;BMSToucan.c,166 :: 		INTCON3.INT1IF = 0; // reset the interrupt flag to prevent looping
 	BCF         INTCON3+0, 0 
-;BMSToucan.c,166 :: 		}
+;BMSToucan.c,167 :: 		}
 	GOTO        L_ISR13
 L_ISR12:
-;BMSToucan.c,167 :: 		else if (INTCON.INT0IF == 1)
+;BMSToucan.c,168 :: 		else if (INTCON.INT0IF == 1)
 	BTFSS       INTCON+0, 1 
 	GOTO        L_ISR14
-;BMSToucan.c,170 :: 		flag_lvp = 1;
+;BMSToucan.c,171 :: 		flag_lvp = 1;
 	MOVLW       1
 	MOVWF       _flag_lvp+0 
-;BMSToucan.c,171 :: 		INTCON.INT0IF = 0; // reset the interrupt flag to prevent looping
+;BMSToucan.c,172 :: 		INTCON.INT0IF = 0; // reset the interrupt flag to prevent looping
 	BCF         INTCON+0, 1 
-;BMSToucan.c,172 :: 		}
+;BMSToucan.c,173 :: 		}
 	GOTO        L_ISR15
 L_ISR14:
-;BMSToucan.c,173 :: 		else if (INTCON.T0IF == 1)
+;BMSToucan.c,174 :: 		else if (INTCON.T0IF == 1)
 	BTFSS       INTCON+0, 2 
 	GOTO        L_ISR16
-;BMSToucan.c,176 :: 		tx_counter++;
+;BMSToucan.c,177 :: 		tx_counter++;
 	MOVLW       1
 	ADDWF       _tx_counter+0, 0 
 	MOVWF       R0 
@@ -179,7 +193,7 @@ L_ISR14:
 	MOVWF       _tx_counter+0 
 	MOVF        R1, 0 
 	MOVWF       _tx_counter+1 
-;BMSToucan.c,177 :: 		if(tx_counter > COUNTER_OVERFLOW)
+;BMSToucan.c,178 :: 		if(tx_counter > COUNTER_OVERFLOW)
 	MOVF        _tx_counter+1, 0 
 	SUBLW       0
 	BTFSS       STATUS+0, 2 
@@ -189,21 +203,21 @@ L_ISR14:
 L__ISR25:
 	BTFSC       STATUS+0, 0 
 	GOTO        L_ISR17
-;BMSToucan.c,179 :: 		flag_check_bms = 1;
+;BMSToucan.c,180 :: 		flag_check_bms = 1;
 	MOVLW       1
 	MOVWF       _flag_check_bms+0 
-;BMSToucan.c,180 :: 		tx_counter = 0;
+;BMSToucan.c,181 :: 		tx_counter = 0;
 	CLRF        _tx_counter+0 
 	CLRF        _tx_counter+1 
-;BMSToucan.c,181 :: 		}
+;BMSToucan.c,182 :: 		}
 L_ISR17:
-;BMSToucan.c,182 :: 		INTCON.T0IF = 0; // reset the TMR0 interrupt flag
+;BMSToucan.c,183 :: 		INTCON.T0IF = 0; // reset the TMR0 interrupt flag
 	BCF         INTCON+0, 2 
-;BMSToucan.c,183 :: 		}
+;BMSToucan.c,184 :: 		}
 L_ISR16:
 L_ISR15:
 L_ISR13:
-;BMSToucan.c,184 :: 		}
+;BMSToucan.c,185 :: 		}
 L_end_ISR:
 L__ISR24:
 	RETFIE      1
@@ -211,8 +225,8 @@ L__ISR24:
 
 _CANbus_setup:
 
-;BMSToucan.c,196 :: 		void CANbus_setup()
-;BMSToucan.c,219 :: 		CANInitialize(SJW, BRP, Phase_Seg1, Phase_Seg2, Prop_Seg, init_flag);
+;BMSToucan.c,197 :: 		void CANbus_setup()
+;BMSToucan.c,220 :: 		CANInitialize(SJW, BRP, Phase_Seg1, Phase_Seg2, Prop_Seg, init_flag);
 	MOVLW       1
 	MOVWF       FARG_CANInitialize_SJW+0 
 	MOVLW       1
@@ -226,20 +240,20 @@ _CANbus_setup:
 	MOVLW       185
 	MOVWF       FARG_CANInitialize_CAN_CONFIG_FLAGS+0 
 	CALL        _CANInitialize+0, 0
-;BMSToucan.c,223 :: 		CANSetOperationMode(_CAN_MODE_CONFIG, 0xFF);
+;BMSToucan.c,224 :: 		CANSetOperationMode(_CAN_MODE_CONFIG, 0xFF);
 	MOVLW       128
 	MOVWF       FARG_CANSetOperationMode_mode+0 
 	MOVLW       255
 	MOVWF       FARG_CANSetOperationMode_WAIT+0 
 	CALL        _CANSetOperationMode+0, 0
-;BMSToucan.c,225 :: 		mask = -1;
+;BMSToucan.c,226 :: 		mask = -1;
 	MOVLW       255
 	MOVWF       CANbus_setup_mask_L0+0 
 	MOVLW       255
 	MOVWF       CANbus_setup_mask_L0+1 
 	MOVWF       CANbus_setup_mask_L0+2 
 	MOVWF       CANbus_setup_mask_L0+3 
-;BMSToucan.c,228 :: 		CANSetMask(_CAN_MASK_B1, mask, _CAN_CONFIG_STD_MSG);
+;BMSToucan.c,229 :: 		CANSetMask(_CAN_MASK_B1, mask, _CAN_CONFIG_STD_MSG);
 	CLRF        FARG_CANSetMask_CAN_MASK+0 
 	MOVLW       255
 	MOVWF       FARG_CANSetMask_val+0 
@@ -252,7 +266,7 @@ _CANbus_setup:
 	MOVLW       255
 	MOVWF       FARG_CANSetMask_CAN_CONFIG_FLAGS+0 
 	CALL        _CANSetMask+0, 0
-;BMSToucan.c,231 :: 		CANSetMask(_CAN_MASK_B2, mask, _CAN_CONFIG_STD_MSG);
+;BMSToucan.c,232 :: 		CANSetMask(_CAN_MASK_B2, mask, _CAN_CONFIG_STD_MSG);
 	MOVLW       1
 	MOVWF       FARG_CANSetMask_CAN_MASK+0 
 	MOVF        CANbus_setup_mask_L0+0, 0 
@@ -266,7 +280,7 @@ _CANbus_setup:
 	MOVLW       255
 	MOVWF       FARG_CANSetMask_CAN_CONFIG_FLAGS+0 
 	CALL        _CANSetMask+0, 0
-;BMSToucan.c,235 :: 		CANSetFilter(_CAN_FILTER_B1_F1,0x202,_CAN_CONFIG_STD_MSG);
+;BMSToucan.c,236 :: 		CANSetFilter(_CAN_FILTER_B1_F1,0x202,_CAN_CONFIG_STD_MSG);
 	CLRF        FARG_CANSetFilter_CAN_FILTER+0 
 	MOVLW       2
 	MOVWF       FARG_CANSetFilter_val+0 
@@ -278,7 +292,7 @@ _CANbus_setup:
 	MOVLW       255
 	MOVWF       FARG_CANSetFilter_CAN_CONFIG_FLAGS+0 
 	CALL        _CANSetFilter+0, 0
-;BMSToucan.c,237 :: 		CANSetFilter(_CAN_FILTER_B1_F2,0x50,_CAN_CONFIG_STD_MSG);
+;BMSToucan.c,238 :: 		CANSetFilter(_CAN_FILTER_B1_F2,0x50,_CAN_CONFIG_STD_MSG);
 	MOVLW       1
 	MOVWF       FARG_CANSetFilter_CAN_FILTER+0 
 	MOVLW       80
@@ -290,20 +304,20 @@ _CANbus_setup:
 	MOVLW       255
 	MOVWF       FARG_CANSetFilter_CAN_CONFIG_FLAGS+0 
 	CALL        _CANSetFilter+0, 0
-;BMSToucan.c,241 :: 		CANSetOperationMode(_CAN_MODE_NORMAL, 0xFF);
+;BMSToucan.c,242 :: 		CANSetOperationMode(_CAN_MODE_NORMAL, 0xFF);
 	CLRF        FARG_CANSetOperationMode_mode+0 
 	MOVLW       255
 	MOVWF       FARG_CANSetOperationMode_WAIT+0 
 	CALL        _CANSetOperationMode+0, 0
-;BMSToucan.c,242 :: 		}/* The CANbus is now set up and ready for use  */
+;BMSToucan.c,243 :: 		}/* The CANbus is now set up and ready for use  */
 L_end_CANbus_setup:
 	RETURN      0
 ; end of _CANbus_setup
 
 _reset_candata:
 
-;BMSToucan.c,248 :: 		void reset_candata()
-;BMSToucan.c,251 :: 		for (i = 0; i < 8; i++)
+;BMSToucan.c,249 :: 		void reset_candata()
+;BMSToucan.c,252 :: 		for (i = 0; i < 8; i++)
 	CLRF        R1 
 	CLRF        R2 
 L_reset_candata18:
@@ -319,7 +333,7 @@ L_reset_candata18:
 L__reset_candata28:
 	BTFSC       STATUS+0, 0 
 	GOTO        L_reset_candata19
-;BMSToucan.c,253 :: 		CAN_data[i] = 0;
+;BMSToucan.c,254 :: 		CAN_data[i] = 0;
 	MOVLW       _CAN_data+0
 	ADDWF       R1, 0 
 	MOVWF       FSR1L 
@@ -327,101 +341,101 @@ L__reset_candata28:
 	ADDWFC      R2, 0 
 	MOVWF       FSR1H 
 	CLRF        POSTINC1+0 
-;BMSToucan.c,251 :: 		for (i = 0; i < 8; i++)
+;BMSToucan.c,252 :: 		for (i = 0; i < 8; i++)
 	INFSNZ      R1, 1 
 	INCF        R2, 1 
-;BMSToucan.c,254 :: 		}
+;BMSToucan.c,255 :: 		}
 	GOTO        L_reset_candata18
 L_reset_candata19:
-;BMSToucan.c,255 :: 		}
+;BMSToucan.c,256 :: 		}
 L_end_reset_candata:
 	RETURN      0
 ; end of _reset_candata
 
 _setup:
 
-;BMSToucan.c,262 :: 		void setup()
-;BMSToucan.c,265 :: 		TRISA = 0; // default PORTA to output
+;BMSToucan.c,263 :: 		void setup()
+;BMSToucan.c,266 :: 		TRISA = 0; // default PORTA to output
 	CLRF        TRISA+0 
-;BMSToucan.c,266 :: 		TRISB = 0; // default PORTB to output
+;BMSToucan.c,267 :: 		TRISB = 0; // default PORTB to output
 	CLRF        TRISB+0 
-;BMSToucan.c,267 :: 		TRISC = 0; // default PORTC to output
+;BMSToucan.c,268 :: 		TRISC = 0; // default PORTC to output
 	CLRF        TRISC+0 
-;BMSToucan.c,270 :: 		INTCON.GIE = 1;    // enable global interrupts
+;BMSToucan.c,271 :: 		INTCON.GIE = 1;    // enable global interrupts
 	BSF         INTCON+0, 7 
-;BMSToucan.c,271 :: 		INTCON.PEIE = 1;   // enable peripheral interrupts
+;BMSToucan.c,272 :: 		INTCON.PEIE = 1;   // enable peripheral interrupts
 	BSF         INTCON+0, 6 
-;BMSToucan.c,272 :: 		INTCON.TMR0IE = 1; // enable timer 0 interrupts to control
+;BMSToucan.c,273 :: 		INTCON.TMR0IE = 1; // enable timer 0 interrupts to control
 	BSF         INTCON+0, 5 
-;BMSToucan.c,274 :: 		INTCON2.RBPU = 1;  // disable pull ups on PORTB
+;BMSToucan.c,275 :: 		INTCON2.RBPU = 1;  // disable pull ups on PORTB
 	BSF         INTCON2+0, 7 
-;BMSToucan.c,275 :: 		INTCON2.INTEDG0 = 1; // interrupt INT0 on rising edge
+;BMSToucan.c,276 :: 		INTCON2.INTEDG0 = 1; // interrupt INT0 on rising edge
 	BSF         INTCON2+0, 6 
-;BMSToucan.c,276 :: 		INTCON2.INTEDG1 = 1; // interrupt INT1 on rising edge
+;BMSToucan.c,277 :: 		INTCON2.INTEDG1 = 1; // interrupt INT1 on rising edge
 	BSF         INTCON2+0, 5 
-;BMSToucan.c,277 :: 		INTCON2.TMR0IP = 1; // TMR0 interrupts are high priority
+;BMSToucan.c,278 :: 		INTCON2.TMR0IP = 1; // TMR0 interrupts are high priority
 	BSF         INTCON2+0, 2 
-;BMSToucan.c,278 :: 		INTCON3.INT2IE = 0; // disable INT2
+;BMSToucan.c,279 :: 		INTCON3.INT2IE = 0; // disable INT2
 	BCF         INTCON3+0, 4 
-;BMSToucan.c,279 :: 		INTCON3.INT1IE = 1; // enable INT1
+;BMSToucan.c,280 :: 		INTCON3.INT1IE = 1; // enable INT1
 	BSF         INTCON3+0, 3 
-;BMSToucan.c,280 :: 		INTCON.INT0IE = 1; // enable INT0
+;BMSToucan.c,281 :: 		INTCON.INT0IE = 1; // enable INT0
 	BSF         INTCON+0, 4 
-;BMSToucan.c,283 :: 		RCSTA.SPEN = 1; // enable the serial port
+;BMSToucan.c,284 :: 		RCSTA.SPEN = 1; // enable the serial port
 	BSF         RCSTA+0, 7 
-;BMSToucan.c,284 :: 		RCSTA.RX9 = 0; // 8 bit mode
+;BMSToucan.c,285 :: 		RCSTA.RX9 = 0; // 8 bit mode
 	BCF         RCSTA+0, 6 
-;BMSToucan.c,285 :: 		TXSTA.SYNC = 0; // start in asynchronous mode
+;BMSToucan.c,286 :: 		TXSTA.SYNC = 0; // start in asynchronous mode
 	BCF         TXSTA+0, 4 
-;BMSToucan.c,286 :: 		TRISC.B7 = 1; // set the RX bit to output
+;BMSToucan.c,287 :: 		TRISC.B7 = 1; // set the RX bit to output
 	BSF         TRISC+0, 7 
-;BMSToucan.c,289 :: 		TXSTA.BRGH = 1; // High speed serial
+;BMSToucan.c,290 :: 		TXSTA.BRGH = 1; // High speed serial
 	BSF         TXSTA+0, 2 
-;BMSToucan.c,290 :: 		SPBRG = 64; // set the baud to 20Mhz / 19200 baud
+;BMSToucan.c,291 :: 		SPBRG = 64; // set the baud to 20Mhz / 19200 baud
 	MOVLW       64
 	MOVWF       SPBRG+0 
-;BMSToucan.c,293 :: 		UART1_init(19200);
+;BMSToucan.c,294 :: 		UART1_init(19200);
 	MOVLW       64
 	MOVWF       SPBRG+0 
 	BSF         TXSTA+0, 2, 0
 	CALL        _UART1_Init+0, 0
-;BMSToucan.c,296 :: 		TRISB.B3 = 1; // set CANRX for outputting transmission
+;BMSToucan.c,297 :: 		TRISB.B3 = 1; // set CANRX for outputting transmission
 	BSF         TRISB+0, 3 
-;BMSToucan.c,297 :: 		TRISB.B2 = 0; // clear CANTX for inputting signal
+;BMSToucan.c,298 :: 		TRISB.B2 = 0; // clear CANTX for inputting signal
 	BCF         TRISB+0, 2 
-;BMSToucan.c,300 :: 		T0CON.TMR0ON = 1; // turn on timer 0
+;BMSToucan.c,301 :: 		T0CON.TMR0ON = 1; // turn on timer 0
 	BSF         T0CON+0, 7 
-;BMSToucan.c,301 :: 		T0CON.T08BIT = 0; // set up as a 16 bit timer
+;BMSToucan.c,302 :: 		T0CON.T08BIT = 0; // set up as a 16 bit timer
 	BCF         T0CON+0, 6 
-;BMSToucan.c,302 :: 		T0CON.T0CS = 0; // use CLK0 as the timing signal
+;BMSToucan.c,303 :: 		T0CON.T0CS = 0; // use CLK0 as the timing signal
 	BCF         T0CON+0, 5 
-;BMSToucan.c,303 :: 		T0CON.PSA = 0; // do not use the prescaler
+;BMSToucan.c,304 :: 		T0CON.PSA = 0; // do not use the prescaler
 	BCF         T0CON+0, 3 
-;BMSToucan.c,304 :: 		T0CON.T0PS2 = 1; // set the prescaler to 1:256
+;BMSToucan.c,305 :: 		T0CON.T0PS2 = 1; // set the prescaler to 1:256
 	BSF         T0CON+0, 2 
-;BMSToucan.c,305 :: 		T0CON.T0PS1 = 1; // this gives us an overflow of TMR0 every 0xFFFF * 256
+;BMSToucan.c,306 :: 		T0CON.T0PS1 = 1; // this gives us an overflow of TMR0 every 0xFFFF * 256
 	BSF         T0CON+0, 1 
-;BMSToucan.c,306 :: 		T0CON.T0PS0 = 1; // clock cycles (at 20Mhz)
+;BMSToucan.c,307 :: 		T0CON.T0PS0 = 1; // clock cycles (at 20Mhz)
 	BSF         T0CON+0, 0 
-;BMSToucan.c,309 :: 		CANbus_setup();
+;BMSToucan.c,310 :: 		CANbus_setup();
 	CALL        _CANbus_setup+0, 0
-;BMSToucan.c,312 :: 		tx_counter = 0; // reset the transmit counter
+;BMSToucan.c,313 :: 		tx_counter = 0; // reset the transmit counter
 	CLRF        _tx_counter+0 
 	CLRF        _tx_counter+1 
-;BMSToucan.c,313 :: 		flag_ovp = 0; // no ovp problem
+;BMSToucan.c,314 :: 		flag_ovp = 0; // no ovp problem
 	CLRF        _flag_ovp+0 
-;BMSToucan.c,314 :: 		flag_lvp = 0; // no lvp problem
+;BMSToucan.c,315 :: 		flag_lvp = 0; // no lvp problem
 	CLRF        _flag_lvp+0 
-;BMSToucan.c,315 :: 		flag_check_bms = 0; // don't check BMS
+;BMSToucan.c,316 :: 		flag_check_bms = 0; // don't check BMS
 	CLRF        _flag_check_bms+0 
-;BMSToucan.c,316 :: 		flag_send_can = 0; // no can messages to send yet
+;BMSToucan.c,317 :: 		flag_send_can = 0; // no can messages to send yet
 	CLRF        _flag_send_can+0 
-;BMSToucan.c,317 :: 		current_cell = 1; // start by querying cell #1
+;BMSToucan.c,318 :: 		current_cell = 1; // start by querying cell #1
 	MOVLW       1
 	MOVWF       _current_cell+0 
 	MOVLW       0
 	MOVWF       _current_cell+1 
-;BMSToucan.c,319 :: 		}
+;BMSToucan.c,320 :: 		}
 L_end_setup:
 	RETURN      0
 ; end of _setup

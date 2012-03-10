@@ -2,22 +2,22 @@
 warning: 0	1501	Specified search path does not exist: 'C:\Program Files\mikroC PRO for PIC\defs'	 
 warning: 0	1501	Specified search path does not exist: 'C:\Program Files\mikroC PRO for PIC\uses\P18'	 
 hint: 0	1139	Available RAM: 1515 [bytes], Available ROM: 32768 [bytes]	 
-diagnostics: 0	126	All files Preprocessed in 15 ms	 
+diagnostics: 0	126	All files Preprocessed in 16 ms	 
 diagnostics: 0	122	Compilation Started	BMSToucan.c
 hint: 0	1004	interrupt handler (ISR at 0x0008)	BMSToucan.c
-hint: 198	1163	Variable 'txt' has been declared, but not used	BMSToucan.c
-warning: 293	1509	Generated baud rate is 19231 bps (error = 0.16 percent)	BMSToucan.c
-diagnostics: 319	123	Compiled Successfully	BMSToucan.c
-hint: 198	1164	Variable 'SJW' has been eliminated by optimizer	BMSToucan.c
-hint: 198	1164	Variable 'BRP' has been eliminated by optimizer	BMSToucan.c
-hint: 198	1164	Variable 'Phase_Seg1' has been eliminated by optimizer	BMSToucan.c
-hint: 198	1164	Variable 'Phase_Seg2' has been eliminated by optimizer	BMSToucan.c
-hint: 198	1164	Variable 'Prop_Seg' has been eliminated by optimizer	BMSToucan.c
-hint: 199	1164	Variable 'init_flag' has been eliminated by optimizer	BMSToucan.c
-diagnostics: 0	127	All files Compiled in 31 ms	 
-hint: 0	1144	Used RAM (bytes): 70 (5%)  Free RAM (bytes): 1445 (95%)	Used RAM (bytes): 70 (5%)  Free RAM (bytes): 1445 (95%)
-hint: 0	1144	Used ROM (bytes): 1776 (5%)  Free ROM (bytes): 30992 (95%)	Used ROM (bytes): 1776 (5%)  Free ROM (bytes): 30992 (95%)
+hint: 199	1163	Variable 'txt' has been declared, but not used	BMSToucan.c
+warning: 294	1509	Generated baud rate is 19231 bps (error = 0.16 percent)	BMSToucan.c
+diagnostics: 320	123	Compiled Successfully	BMSToucan.c
+hint: 199	1164	Variable 'SJW' has been eliminated by optimizer	BMSToucan.c
+hint: 199	1164	Variable 'BRP' has been eliminated by optimizer	BMSToucan.c
+hint: 199	1164	Variable 'Phase_Seg1' has been eliminated by optimizer	BMSToucan.c
+hint: 199	1164	Variable 'Phase_Seg2' has been eliminated by optimizer	BMSToucan.c
+hint: 199	1164	Variable 'Prop_Seg' has been eliminated by optimizer	BMSToucan.c
+hint: 200	1164	Variable 'init_flag' has been eliminated by optimizer	BMSToucan.c
+diagnostics: 0	127	All files Compiled in 15 ms	 
+hint: 0	1144	Used RAM (bytes): 101 (7%)  Free RAM (bytes): 1414 (93%)	Used RAM (bytes): 101 (7%)  Free RAM (bytes): 1414 (93%)
+hint: 0	1144	Used ROM (bytes): 1872 (6%)  Free ROM (bytes): 30896 (94%)	Used ROM (bytes): 1872 (6%)  Free ROM (bytes): 30896 (94%)
 diagnostics: 0	125	Project Linked Successfully	BMSToucan.mcppi
-diagnostics: 0	128	Linked in 422 ms	 
-diagnostics: 0	129	Project 'BMSToucan.mcppi' completed: 546 ms	 
-diagnostics: 0	103	Finished successfully: 10 Mar 2012, 01:23:30	BMSToucan.mcppi
+diagnostics: 0	128	Linked in 421 ms	 
+diagnostics: 0	129	Project 'BMSToucan.mcppi' completed: 530 ms	 
+diagnostics: 0	103	Finished successfully: 10 Mar 2012, 01:24:43	BMSToucan.mcppi
