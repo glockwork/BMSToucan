@@ -414,6 +414,7 @@ ccpr1
 ccpr1h
 ccpr1l
 ceil
+cell_num_bit
 cf_detect
 cf_disable
 cf_enable
@@ -1214,6 +1215,7 @@ lvdl2
 lvdl2_bit
 lvdl3
 lvdl3_bit
+lvp_bit
 main
 malloc
 man_break
@@ -1343,6 +1345,7 @@ osc2_bit
 osccon
 ov
 ov_bit
+ovp_bit
 ow_read
 ow_reset
 ow_write
@@ -3589,6 +3592,10 @@ uart1_tx_idle
 uart1_write
 uart1_write_text
 uldiv
+v1_bit
+v2_bit
+v3_bit
+v4_bit
 vdelay_advanced_ms
 vdelay_ms
 vrefm

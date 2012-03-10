@@ -32,9 +32,19 @@ volatile unsigned char flag_check_bms; // flag set when it is time to query a BM
 
 // other global variables
 int current_cell;
-const int NUMBER_OF_CELLS = 18; // the number of battery cells to check
 unsigned char CAN_data[8];
+
+
+// Constants
+const int NUMBER_OF_CELLS = 18; // the number of battery cells to check
 const long CAN_ADDRESS = 0x88; // the address of this can message
+const unsigned char OVP_BIT = 6;
+const unsigned char LVP_BIT = 5;
+const unsigned char V4_BIT = 4;
+const unsigned char V3_BIT = 3;
+const unsigned char V2_BIT = 2;
+const unsigned char V1_BIT = 1;
+const unsigned char CELL_NUM_BIT = 0;
 
 /**
 *  The main loop - checks the status of interrupt flags and actions
