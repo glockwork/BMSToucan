@@ -1,0 +1,5 @@
+main
+	setup
+		interrupt_setup
+	interrupt_setup
+ISR

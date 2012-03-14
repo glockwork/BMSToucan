@@ -1,19 +1,5 @@
 main
 	setup
-		UART1_Init
-		CANbus_setup
-			CANInitialize
-				CANSetOperationMode
-				CANSetBaudRate
-				CANSetMask
-					CANIDToRegs
-				CANSetFilter
-					CANIDToRegs
-			CANSetOperationMode
-			CANSetMask
-				CANIDToRegs
-			CANSetFilter
-				CANIDToRegs
 	reset_candata
 	UART1_Write
 	UART1_Data_Ready

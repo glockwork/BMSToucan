@@ -184,7 +184,8 @@ void CANbus_setup()
  char SJW, BRP, Phase_Seg1, Phase_Seg2, Prop_Seg, txt[4];
  unsigned short init_flag;
  long mask;
-#line 237 "C:/Users/mecharius/Dropbox/Projects/HXN-5 BMStoCAN/Code/BMSToucan.c"
+
+
  SJW = 1;
  BRP = 1;
  Phase_Seg1 = 6;
@@ -197,17 +198,19 @@ void CANbus_setup()
  _CAN_CONFIG_DBL_BUFFER_ON &
  _CAN_CONFIG_VALID_STD_MSG &
  _CAN_CONFIG_LINE_FILTER_OFF;
-#line 252 "C:/Users/mecharius/Dropbox/Projects/HXN-5 BMStoCAN/Code/BMSToucan.c"
+
+
  CANInitialize(SJW, BRP, Phase_Seg1, Phase_Seg2, Prop_Seg, init_flag);
-#line 256 "C:/Users/mecharius/Dropbox/Projects/HXN-5 BMStoCAN/Code/BMSToucan.c"
+
+
  CANSetOperationMode(_CAN_MODE_CONFIG, 0xFF);
 
- mask = -1;
-#line 261 "C:/Users/mecharius/Dropbox/Projects/HXN-5 BMStoCAN/Code/BMSToucan.c"
- CANSetMask(_CAN_MASK_B1, mask, _CAN_CONFIG_STD_MSG);
-#line 264 "C:/Users/mecharius/Dropbox/Projects/HXN-5 BMStoCAN/Code/BMSToucan.c"
- CANSetMask(_CAN_MASK_B2, mask, _CAN_CONFIG_STD_MSG);
 
+ mask = -1;
+ CANSetMask(_CAN_MASK_B1, mask, _CAN_CONFIG_STD_MSG);
+
+
+ CANSetMask(_CAN_MASK_B2, mask, _CAN_CONFIG_STD_MSG);
 
 
  CANSetFilter(_CAN_FILTER_B1_F1,0x202,_CAN_CONFIG_STD_MSG);
@@ -215,10 +218,9 @@ void CANbus_setup()
  CANSetFilter(_CAN_FILTER_B1_F2,0x50,_CAN_CONFIG_STD_MSG);
 
 
-
  CANSetOperationMode(_CAN_MODE_NORMAL, 0xFF);
 }
-#line 281 "C:/Users/mecharius/Dropbox/Projects/HXN-5 BMStoCAN/Code/BMSToucan.c"
+#line 275 "C:/Users/mecharius/Dropbox/Projects/HXN-5 BMStoCAN/Code/BMSToucan.c"
 void reset_candata()
 {
  int i;
@@ -227,7 +229,7 @@ void reset_candata()
  CAN_data[i] = 0;
  }
 }
-#line 295 "C:/Users/mecharius/Dropbox/Projects/HXN-5 BMStoCAN/Code/BMSToucan.c"
+#line 289 "C:/Users/mecharius/Dropbox/Projects/HXN-5 BMStoCAN/Code/BMSToucan.c"
 void setup()
 {
 
@@ -247,25 +249,7 @@ void setup()
  INTCON3.INT2IE = 0;
  INTCON3.INT1IE = 1;
  INTCON.INT0IE = 1;
-
-
- RCSTA.SPEN = 1;
- RCSTA.RX9 = 0;
- TXSTA.SYNC = 0;
- TRISC.B7 = 1;
-
-
- TXSTA.BRGH = 1;
- SPBRG = 64;
-
-
- UART1_init(19200);
-
-
- TRISB.B3 = 1;
- TRISB.B2 = 0;
-
-
+#line 327 "C:/Users/mecharius/Dropbox/Projects/HXN-5 BMStoCAN/Code/BMSToucan.c"
  T0CON.TMR0ON = 1;
  T0CON.T08BIT = 0;
  T0CON.T0CS = 0;
@@ -275,7 +259,7 @@ void setup()
  T0CON.T0PS0 = 1;
 
 
- CANbus_setup();
+
 
 
  tx_counter = 0;

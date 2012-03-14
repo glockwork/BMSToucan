@@ -1,0 +1,358 @@
+<html>
+<head><title>BMS Toucan Code</title></head>
+<body>
+<div class="c" style="font-family:monospace;color: #006; border: 1px solid #d0d0d0; background-color: #f0f0f0;"><span style="color: #808080; font-style: italic;">/**<br />
+* &nbsp; BMS Toucan, William Hart for Oxford Brookes Racing<br />
+* &nbsp; 11082131@brookes.ac.uk / hart.wl@gmail.com<br />
+*<br />
+* &nbsp; This module queries the BMS cells at a rate of 2Hz. &nbsp;On each cycle<br />
+* &nbsp; one cell grouping is queried via the serial connections. &nbsp;(One cell<br />
+* &nbsp; group is four individual battery cells).<br />
+*<br />
+* &nbsp; When cell information is received from the LifeBatt BMS it is converted<br />
+* &nbsp; to a can message and retransmitted under address 207. &nbsp;The message contains<br />
+* &nbsp; format conforms to the following template:<br />
+* &nbsp; $0000000207,CELL#,V1,V2,V3,V4,ERROR_FLAGS,00,00*PARITY<br />
+*<br />
+* &nbsp; Error flags are set on bits 0:2 (MSB is bit 7, LHS)<br />
+* &nbsp; &nbsp; - &nbsp;B0: &nbsp;OVP problem if set<br />
+* &nbsp; &nbsp; - &nbsp;B1: &nbsp;LVP problem if set<br />
+* &nbsp; &nbsp; - &nbsp;B2: &nbsp;Comms issues (exceeded MAX_BMS_CHECK_ABORTS) if set<br />
+*<br />
+* &nbsp; Cell voltages are from 0-255, with a multiplier of 0.05 (e.g. a value of<br />
+* &nbsp; 0xAB is equal to 171 decimal, when multiplied by 0.05 this corresponds to<br />
+* &nbsp; a cell reading of 8.55v.<br />
+*/</span><br />
+<br />
+<br />
+<span style="color: #666666; font-style: italic;">// forward function delcarations</span><br />
+<span style="color: #993333;">void</span> setup<span style="color: #009900;">&#40;</span><span style="color: #009900;">&#41;</span><span style="color: #339933;">;</span><br />
+<span style="color: #993333;">void</span> ISR<span style="color: #009900;">&#40;</span><span style="color: #009900;">&#41;</span><span style="color: #339933;">;</span><br />
+<span style="color: #993333;">void</span> CANbus_setup<span style="color: #009900;">&#40;</span><span style="color: #009900;">&#41;</span><span style="color: #339933;">;</span><br />
+<span style="color: #993333;">void</span> reset_candata<span style="color: #009900;">&#40;</span><span style="color: #009900;">&#41;</span><span style="color: #339933;">;</span><br />
+<br />
+<br />
+<span style="color: #666666; font-style: italic;">// Constants</span><br />
+<span style="color: #993333;">const</span> <span style="color: #993333;">short</span> SEND_FLAG <span style="color: #339933;">=</span>_CAN_TX_PRIORITY_0 <span style="color: #339933;">&amp;</span> _CAN_TX_NO_RTR_FRAME<span style="color: #339933;">;</span><br />
+<span style="color: #993333;">const</span> <span style="color: #993333;">int</span> NUMBER_OF_CELLS <span style="color: #339933;">=</span> <span style="color: #0000dd;">18</span><span style="color: #339933;">;</span> <span style="color: #666666; font-style: italic;">// the number of battery cells to check</span><br />
+<span style="color: #993333;">const</span> <span style="color: #993333;">long</span> CAN_ADDRESS <span style="color: #339933;">=</span> <span style="color: #208080;">0x88</span><span style="color: #339933;">;</span> <span style="color: #666666; font-style: italic;">// the address of this can message</span><br />
+<span style="color: #993333;">const</span> <span style="color: #993333;">unsigned</span> <span style="color: #993333;">int</span> COUNTER_OVERFLOW <span style="color: #339933;">=</span> <span style="color: #0000dd;">38</span><span style="color: #339933;">;</span> <span style="color: #666666; font-style: italic;">// counter overflows after this many loops</span><br />
+&nbsp; &nbsp; &nbsp; &nbsp; <span style="color: #666666; font-style: italic;">// this is calculated as we are running at 20MHz which is 5MIPS...</span><br />
+&nbsp; &nbsp; &nbsp; &nbsp; <span style="color: #666666; font-style: italic;">// as our timer is in 16bit mode this means 65535 instructions between</span><br />
+&nbsp; &nbsp; &nbsp; &nbsp; <span style="color: #666666; font-style: italic;">// interrupts. &nbsp;We want to update at 2Hz, and 65535 * 38 is approximately</span><br />
+&nbsp; &nbsp; &nbsp; &nbsp; <span style="color: #666666; font-style: italic;">// 2.5 million, or 0.5 seconds.</span><br />
+<span style="color: #993333;">const</span> <span style="color: #993333;">unsigned</span> <span style="color: #993333;">char</span> BMS_ERROR_BIT <span style="color: #339933;">=</span> <span style="color: #0000dd;">6</span><span style="color: #339933;">;</span> <span style="color: #666666; font-style: italic;">// B0 = OVP, B1 = LVP, B2 = Comms</span><br />
+<span style="color: #993333;">const</span> <span style="color: #993333;">unsigned</span> <span style="color: #993333;">char</span> V4_BIT <span style="color: #339933;">=</span> <span style="color: #0000dd;">4</span><span style="color: #339933;">;</span><br />
+<span style="color: #993333;">const</span> <span style="color: #993333;">unsigned</span> <span style="color: #993333;">char</span> V3_BIT <span style="color: #339933;">=</span> <span style="color: #0000dd;">3</span><span style="color: #339933;">;</span><br />
+<span style="color: #993333;">const</span> <span style="color: #993333;">unsigned</span> <span style="color: #993333;">char</span> V2_BIT <span style="color: #339933;">=</span> <span style="color: #0000dd;">2</span><span style="color: #339933;">;</span><br />
+<span style="color: #993333;">const</span> <span style="color: #993333;">unsigned</span> <span style="color: #993333;">char</span> V1_BIT <span style="color: #339933;">=</span> <span style="color: #0000dd;">1</span><span style="color: #339933;">;</span><br />
+<span style="color: #993333;">const</span> <span style="color: #993333;">unsigned</span> <span style="color: #993333;">char</span> CELL_NUM_BIT <span style="color: #339933;">=</span> <span style="color: #0000dd;">0</span><span style="color: #339933;">;</span><br />
+<span style="color: #993333;">const</span> <span style="color: #993333;">unsigned</span> <span style="color: #993333;">char</span> BMS_QUERY_BIT_1 <span style="color: #339933;">=</span> <span style="color: #208080;">0x81</span><span style="color: #339933;">;</span><br />
+<span style="color: #993333;">const</span> <span style="color: #993333;">unsigned</span> <span style="color: #993333;">char</span> BMS_QUERY_BIT_2 <span style="color: #339933;">=</span> <span style="color: #208080;">0xAA</span><span style="color: #339933;">;</span><br />
+<span style="color: #993333;">const</span> <span style="color: #993333;">unsigned</span> <span style="color: #993333;">char</span> BMS_QUERY_LENGTH <span style="color: #339933;">=</span> <span style="color: #0000dd;">29</span><span style="color: #339933;">;</span> <span style="color: #666666; font-style: italic;">// 29 bits received in a bms query</span><br />
+<span style="color: #993333;">const</span> <span style="color: #993333;">unsigned</span> <span style="color: #993333;">char</span> MAX_BMS_CHECK_ABORTS <span style="color: #339933;">=</span> <span style="color: #0000dd;">10</span><span style="color: #339933;">;</span> <br />
+&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; <span style="color: #666666; font-style: italic;">// the number of times we can abort a BMS check whilst</span><br />
+&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; <span style="color: #666666; font-style: italic;">// waiting for BMS data. &nbsp;Beyond this number of aborts</span><br />
+&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; <span style="color: #666666; font-style: italic;">// we can assume a timeout error has occurred</span><br />
+<span style="color: #993333;">const</span> <span style="color: #993333;">unsigned</span> <span style="color: #993333;">char</span> BMS_V1_B1 <span style="color: #339933;">=</span> <span style="color: #0000dd;">3</span><span style="color: #339933;">;</span> &nbsp;<span style="color: #666666; font-style: italic;">// the BMS bytes to read to build our voltage</span><br />
+<span style="color: #993333;">const</span> <span style="color: #993333;">unsigned</span> <span style="color: #993333;">char</span> BMS_V1_B2 <span style="color: #339933;">=</span> <span style="color: #0000dd;">4</span><span style="color: #339933;">;</span><br />
+<span style="color: #993333;">const</span> <span style="color: #993333;">unsigned</span> <span style="color: #993333;">char</span> BMS_V2_B1 <span style="color: #339933;">=</span> <span style="color: #0000dd;">7</span><span style="color: #339933;">;</span><br />
+<span style="color: #993333;">const</span> <span style="color: #993333;">unsigned</span> <span style="color: #993333;">char</span> BMS_V2_B2 <span style="color: #339933;">=</span> <span style="color: #0000dd;">8</span><span style="color: #339933;">;</span><br />
+<span style="color: #993333;">const</span> <span style="color: #993333;">unsigned</span> <span style="color: #993333;">char</span> BMS_V3_B1 <span style="color: #339933;">=</span> <span style="color: #0000dd;">11</span><span style="color: #339933;">;</span><br />
+<span style="color: #993333;">const</span> <span style="color: #993333;">unsigned</span> <span style="color: #993333;">char</span> BMS_V3_B2 <span style="color: #339933;">=</span> <span style="color: #0000dd;">12</span><span style="color: #339933;">;</span><br />
+<span style="color: #993333;">const</span> <span style="color: #993333;">unsigned</span> <span style="color: #993333;">char</span> BMS_V4_B1 <span style="color: #339933;">=</span> <span style="color: #0000dd;">15</span><span style="color: #339933;">;</span><br />
+<span style="color: #993333;">const</span> <span style="color: #993333;">unsigned</span> <span style="color: #993333;">char</span> BMS_V4_B2 <span style="color: #339933;">=</span> <span style="color: #0000dd;">16</span><span style="color: #339933;">;</span><br />
+<br />
+<br />
+<span style="color: #666666; font-style: italic;">// global flags and counters for use with interrupts</span><br />
+<span style="color: #993333;">volatile</span> <span style="color: #993333;">unsigned</span> <span style="color: #993333;">int</span> tx_counter<span style="color: #339933;">;</span> <span style="color: #666666; font-style: italic;">// counter used for TMR0 overflow</span><br />
+<span style="color: #993333;">volatile</span> <span style="color: #993333;">unsigned</span> <span style="color: #993333;">char</span> flag_ovp<span style="color: #339933;">;</span> <span style="color: #666666; font-style: italic;">// flags an OVP problem raised by the BMS</span><br />
+<span style="color: #993333;">volatile</span> <span style="color: #993333;">unsigned</span> <span style="color: #993333;">char</span> flag_lvp<span style="color: #339933;">;</span> <span style="color: #666666; font-style: italic;">// flags an LVP problem raised by the BMS</span><br />
+<span style="color: #993333;">volatile</span> <span style="color: #993333;">unsigned</span> <span style="color: #993333;">char</span> flag_check_bms<span style="color: #339933;">;</span> <span style="color: #666666; font-style: italic;">// flag set when it is time to query a BMS cell</span><br />
+<span style="color: #993333;">unsigned</span> <span style="color: #993333;">char</span> flag_send_can<span style="color: #339933;">;</span> <span style="color: #666666; font-style: italic;">// flag set when we have a message to send</span><br />
+<br />
+<span style="color: #666666; font-style: italic;">// other global variables</span><br />
+<span style="color: #993333;">int</span> current_cell<span style="color: #339933;">;</span> <span style="color: #666666; font-style: italic;">// the current cell we are querying</span><br />
+<span style="color: #993333;">unsigned</span> <span style="color: #993333;">char</span> CAN_data<span style="color: #009900;">&#91;</span><span style="color: #0000dd;">8</span><span style="color: #009900;">&#93;</span><span style="color: #339933;">;</span><br />
+<span style="color: #993333;">unsigned</span> <span style="color: #993333;">char</span> BMS_buffer<span style="color: #009900;">&#91;</span>BMS_QUERY_LENGTH<span style="color: #009900;">&#93;</span><span style="color: #339933;">;</span> <span style="color: #666666; font-style: italic;">// an array to hold our BMS buffer</span><br />
+<span style="color: #993333;">unsigned</span> <span style="color: #993333;">char</span> BMS_buffer_idx<span style="color: #339933;">;</span> <span style="color: #666666; font-style: italic;">// our current position in the BMS buffer</span><br />
+<span style="color: #993333;">unsigned</span> <span style="color: #993333;">char</span> aborted_bms_checks<span style="color: #339933;">;</span> <span style="color: #666666; font-style: italic;">// the number of consecutive BMS checks skipped</span><br />
+&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; <span style="color: #666666; font-style: italic;">// because we were waiting on serial data</span><br />
+<br />
+<span style="color: #808080; font-style: italic;">/**<br />
+* &nbsp;The main loop - checks the status of interrupt flags and actions<br />
+* &nbsp;them if required. &nbsp;Flags indicate different actions are required:<br />
+* &nbsp; &nbsp;- flag_ovp: &nbsp;if equal to 1, an over voltage problem exists<br />
+* &nbsp; &nbsp;- flag_lvp: &nbsp;if equal to 1, a low voltage problem exists<br />
+* &nbsp; &nbsp;- flag_check_bms: if equal to 1, it is time to check the next BMS cell<br />
+*/</span><br />
+<span style="color: #993333;">void</span> main<span style="color: #009900;">&#40;</span><span style="color: #009900;">&#41;</span> <span style="color: #009900;">&#123;</span><br />
+&nbsp; &nbsp; <span style="color: #666666; font-style: italic;">// perform setup</span><br />
+&nbsp; &nbsp; setup<span style="color: #009900;">&#40;</span><span style="color: #009900;">&#41;</span><span style="color: #339933;">;</span><br />
+&nbsp; &nbsp; <br />
+&nbsp; &nbsp; <span style="color: #666666; font-style: italic;">// main loop</span><br />
+&nbsp; &nbsp; <span style="color: #b1b100;">for</span><span style="color: #009900;">&#40;</span><span style="color: #339933;">;;</span><span style="color: #009900;">&#41;</span><br />
+&nbsp; &nbsp; <span style="color: #009900;">&#123;</span><br />
+&nbsp; &nbsp; &nbsp; &nbsp; <span style="color: #666666; font-style: italic;">// clear previous CAN_data[] values</span><br />
+&nbsp; &nbsp; &nbsp; &nbsp; reset_candata<span style="color: #009900;">&#40;</span><span style="color: #009900;">&#41;</span><span style="color: #339933;">;</span><br />
+&nbsp; &nbsp; &nbsp; &nbsp; <br />
+&nbsp; &nbsp; &nbsp; &nbsp; <span style="color: #666666; font-style: italic;">// check for flags</span><br />
+&nbsp; &nbsp; &nbsp; &nbsp; <span style="color: #b1b100;">if</span> <span style="color: #009900;">&#40;</span>flag_ovp<span style="color: #009900;">&#41;</span> <span style="color: #009900;">&#123;</span><br />
+&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; <span style="color: #666666; font-style: italic;">// we have found an OVP problem - set the appropriate CAN byte</span><br />
+&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; CAN_data<span style="color: #009900;">&#91;</span>BMS_ERROR_BIT<span style="color: #009900;">&#93;</span>.<span style="color: #202020;">B0</span> <span style="color: #339933;">=</span> <span style="color: #0000dd;">1</span><span style="color: #339933;">;</span><br />
+&nbsp; &nbsp; &nbsp; &nbsp; <span style="color: #009900;">&#125;</span><br />
+&nbsp; &nbsp; &nbsp; &nbsp; <span style="color: #b1b100;">if</span> <span style="color: #009900;">&#40;</span>flag_lvp<span style="color: #009900;">&#41;</span> <span style="color: #009900;">&#123;</span><br />
+&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; <span style="color: #666666; font-style: italic;">// we have found an LVP problem - set the appropriate CAN byte</span><br />
+&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; CAN_data<span style="color: #009900;">&#91;</span>BMS_ERROR_BIT<span style="color: #009900;">&#93;</span>.<span style="color: #202020;">B1</span> <span style="color: #339933;">=</span> <span style="color: #0000dd;">1</span><span style="color: #339933;">;</span><br />
+&nbsp; &nbsp; &nbsp; &nbsp; <span style="color: #009900;">&#125;</span><br />
+&nbsp; &nbsp; &nbsp; &nbsp; <br />
+&nbsp; &nbsp; &nbsp; &nbsp; <span style="color: #666666; font-style: italic;">// now check if we need to update BMS status</span><br />
+&nbsp; &nbsp; &nbsp; &nbsp; <span style="color: #b1b100;">if</span> <span style="color: #009900;">&#40;</span>flag_check_bms<span style="color: #009900;">&#41;</span> <span style="color: #009900;">&#123;</span><br />
+&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; <br />
+&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; <span style="color: #666666; font-style: italic;">// first check if we are still waiting on data from the last</span><br />
+&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; <span style="color: #666666; font-style: italic;">// BMS Query. &nbsp;If we are then abort this check and increment</span><br />
+&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; <span style="color: #666666; font-style: italic;">// our &quot;aborted_bms_checks&quot; counter. &nbsp;If this counter reaches</span><br />
+&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; <span style="color: #666666; font-style: italic;">// MAX_BMS_CHECK_ABORTS we have had an error</span><br />
+&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; <span style="color: #b1b100;">if</span> <span style="color: #009900;">&#40;</span>BMS_buffer_idx <span style="color: #339933;">&gt;</span> <span style="color: #0000dd;">0</span><span style="color: #009900;">&#41;</span><br />
+&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; <span style="color: #009900;">&#123;</span><br />
+&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; aborted_bms_checks<span style="color: #339933;">++;</span><br />
+&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; <br />
+&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; <span style="color: #666666; font-style: italic;">// check if we have a timeout error</span><br />
+&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; <span style="color: #b1b100;">if</span> <span style="color: #009900;">&#40;</span>aborted_bms_checks <span style="color: #339933;">&gt;</span> MAX_BMS_CHECK_ABORTS<span style="color: #009900;">&#41;</span><br />
+&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; <span style="color: #009900;">&#123;</span><br />
+&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; <span style="color: #666666; font-style: italic;">// send a comms error flag, then reset our buffer position</span><br />
+&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; CAN_data<span style="color: #009900;">&#91;</span>BMS_ERROR_BIT<span style="color: #009900;">&#93;</span>.<span style="color: #202020;">B2</span> <span style="color: #339933;">=</span> <span style="color: #0000dd;">1</span><span style="color: #339933;">;</span><br />
+&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; aborted_bms_checks <span style="color: #339933;">=</span> <span style="color: #0000dd;">0</span><span style="color: #339933;">;</span><br />
+&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; BMS_buffer_idx <span style="color: #339933;">=</span> <span style="color: #0000dd;">0</span><span style="color: #339933;">;</span><br />
+&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; <span style="color: #009900;">&#125;</span><br />
+&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; <span style="color: #009900;">&#125;</span> <span style="color: #b1b100;">else</span> <span style="color: #009900;">&#123;</span><br />
+&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; aborted_bms_checks <span style="color: #339933;">=</span> <span style="color: #0000dd;">0</span><span style="color: #339933;">;</span> <span style="color: #666666; font-style: italic;">// no checks have been aborted</span><br />
+<br />
+&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; <span style="color: #666666; font-style: italic;">// now we need to check the next BMS cell</span><br />
+&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; current_cell<span style="color: #339933;">++;</span> <span style="color: #666666; font-style: italic;">// move to the next cell</span><br />
+&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; <span style="color: #b1b100;">if</span><span style="color: #009900;">&#40;</span>current_cell <span style="color: #339933;">&gt;</span> NUMBER_OF_CELLS<span style="color: #009900;">&#41;</span><br />
+&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; <span style="color: #009900;">&#123;</span><br />
+&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; current_cell <span style="color: #339933;">=</span> <span style="color: #0000dd;">1</span><span style="color: #339933;">;</span> <span style="color: #666666; font-style: italic;">// move back to the first cell</span><br />
+&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; <span style="color: #009900;">&#125;</span><br />
+<br />
+&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; <span style="color: #666666; font-style: italic;">// query the battery - start by sending the start bits</span><br />
+&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; UART1_Write<span style="color: #009900;">&#40;</span>BMS_QUERY_BIT_1<span style="color: #009900;">&#41;</span><span style="color: #339933;">;</span><br />
+&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; UART1_Write<span style="color: #009900;">&#40;</span>BMS_QUERY_BIT_2<span style="color: #009900;">&#41;</span><span style="color: #339933;">;</span><br />
+<br />
+&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; <span style="color: #666666; font-style: italic;">// now send the cell group number we are querying (sent twice)</span><br />
+&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; UART1_Write<span style="color: #009900;">&#40;</span>current_cell<span style="color: #009900;">&#41;</span><span style="color: #339933;">;</span><br />
+&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; UART1_Write<span style="color: #009900;">&#40;</span>current_cell<span style="color: #009900;">&#41;</span><span style="color: #339933;">;</span><br />
+&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; <span style="color: #009900;">&#125;</span><br />
+&nbsp; &nbsp; &nbsp; &nbsp; <span style="color: #009900;">&#125;</span><br />
+&nbsp; &nbsp; &nbsp; &nbsp; <br />
+&nbsp; &nbsp; &nbsp; &nbsp; <span style="color: #666666; font-style: italic;">// read serial information if we have any</span><br />
+&nbsp; &nbsp; &nbsp; &nbsp; <span style="color: #b1b100;">if</span><span style="color: #009900;">&#40;</span>UART1_Data_ready<span style="color: #009900;">&#40;</span><span style="color: #009900;">&#41;</span><span style="color: #009900;">&#41;</span><br />
+&nbsp; &nbsp; &nbsp; &nbsp; <span style="color: #009900;">&#123;</span><br />
+&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; <span style="color: #666666; font-style: italic;">// read a serial byte</span><br />
+&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; BMS_buffer<span style="color: #009900;">&#91;</span>BMS_buffer_idx<span style="color: #009900;">&#93;</span> <span style="color: #339933;">=</span> UART1_read<span style="color: #009900;">&#40;</span><span style="color: #009900;">&#41;</span><span style="color: #339933;">;</span><br />
+&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; BMS_buffer_idx<span style="color: #339933;">++;</span><br />
+&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; <br />
+&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; <span style="color: #666666; font-style: italic;">// check if we have read a whole message</span><br />
+&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; <span style="color: #b1b100;">if</span> <span style="color: #009900;">&#40;</span>BMS_buffer_idx <span style="color: #339933;">==</span> BMS_QUERY_LENGTH<span style="color: #009900;">&#41;</span><br />
+&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; <span style="color: #009900;">&#123;</span><br />
+&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; <span style="color: #666666; font-style: italic;">// build up the CAN_data based on what we recieved from the BMS</span><br />
+&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; <span style="color: #666666; font-style: italic;">// we need to divide by 256 to convert from 16bit to 8 bit;</span><br />
+&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; CAN_data<span style="color: #009900;">&#91;</span>V1_bit<span style="color: #009900;">&#93;</span> <span style="color: #339933;">=</span> <span style="color: #009900;">&#40;</span><span style="color: #009900;">&#40;</span>BMS_buffer<span style="color: #009900;">&#91;</span>BMS_V1_B2<span style="color: #009900;">&#93;</span> <span style="color: #339933;">&lt;&lt;</span> <span style="color: #0000dd;">8</span><span style="color: #009900;">&#41;</span> <span style="color: #339933;">&amp;</span><br />
+&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; BMS_buffer<span style="color: #009900;">&#91;</span>BMS_V1_B1<span style="color: #009900;">&#93;</span><span style="color: #009900;">&#41;</span> <span style="color: #339933;">/</span> <span style="color: #0000dd;">256</span><span style="color: #339933;">;</span><br />
+&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; CAN_data<span style="color: #009900;">&#91;</span>V2_bit<span style="color: #009900;">&#93;</span> <span style="color: #339933;">=</span> <span style="color: #009900;">&#40;</span><span style="color: #009900;">&#40;</span>BMS_buffer<span style="color: #009900;">&#91;</span>BMS_V2_B2<span style="color: #009900;">&#93;</span> <span style="color: #339933;">&lt;&lt;</span> <span style="color: #0000dd;">8</span><span style="color: #009900;">&#41;</span> <span style="color: #339933;">&amp;</span><br />
+&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; BMS_buffer<span style="color: #009900;">&#91;</span>BMS_V2_B1<span style="color: #009900;">&#93;</span><span style="color: #009900;">&#41;</span> <span style="color: #339933;">/</span> <span style="color: #0000dd;">256</span><span style="color: #339933;">;</span><br />
+&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; CAN_data<span style="color: #009900;">&#91;</span>V3_bit<span style="color: #009900;">&#93;</span> <span style="color: #339933;">=</span> <span style="color: #009900;">&#40;</span><span style="color: #009900;">&#40;</span>BMS_buffer<span style="color: #009900;">&#91;</span>BMS_V3_B2<span style="color: #009900;">&#93;</span> <span style="color: #339933;">&lt;&lt;</span> <span style="color: #0000dd;">8</span><span style="color: #009900;">&#41;</span> <span style="color: #339933;">&amp;</span><br />
+&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; BMS_buffer<span style="color: #009900;">&#91;</span>BMS_V3_B1<span style="color: #009900;">&#93;</span><span style="color: #009900;">&#41;</span> <span style="color: #339933;">/</span> <span style="color: #0000dd;">256</span><span style="color: #339933;">;</span><br />
+&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; CAN_data<span style="color: #009900;">&#91;</span>V4_bit<span style="color: #009900;">&#93;</span> <span style="color: #339933;">=</span> <span style="color: #009900;">&#40;</span><span style="color: #009900;">&#40;</span>BMS_buffer<span style="color: #009900;">&#91;</span>BMS_V4_B2<span style="color: #009900;">&#93;</span> <span style="color: #339933;">&lt;&lt;</span> <span style="color: #0000dd;">8</span><span style="color: #009900;">&#41;</span> <span style="color: #339933;">&amp;</span><br />
+&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; BMS_buffer<span style="color: #009900;">&#91;</span>BMS_V4_B1<span style="color: #009900;">&#93;</span><span style="color: #009900;">&#41;</span> <span style="color: #339933;">/</span> <span style="color: #0000dd;">256</span><span style="color: #339933;">;</span><br />
+&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; flag_send_can <span style="color: #339933;">=</span> <span style="color: #208080;">0x01</span><span style="color: #339933;">;</span> <span style="color: #666666; font-style: italic;">// as we have received a full buffer</span><br />
+&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; <span style="color: #666666; font-style: italic;">// we can send a CAN message</span><br />
+<br />
+&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; <span style="color: #009900;">&#125;</span><br />
+&nbsp; &nbsp; &nbsp; &nbsp; <span style="color: #009900;">&#125;</span><br />
+&nbsp; &nbsp; &nbsp; &nbsp; <br />
+&nbsp; &nbsp; &nbsp; &nbsp; <span style="color: #666666; font-style: italic;">// write the CAN message if it is ready</span><br />
+&nbsp; &nbsp; &nbsp; &nbsp; <span style="color: #b1b100;">if</span><span style="color: #009900;">&#40;</span>flag_send_can <span style="color: #339933;">==</span> <span style="color: #208080;">0x01</span><span style="color: #009900;">&#41;</span><br />
+&nbsp; &nbsp; &nbsp; &nbsp; <span style="color: #009900;">&#123;</span><br />
+&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; <span style="color: #666666; font-style: italic;">// send the message</span><br />
+&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; CanWrite<span style="color: #009900;">&#40;</span>CAN_ADDRESS<span style="color: #339933;">,</span> CAN_data<span style="color: #339933;">,</span> <span style="color: #0000dd;">1</span><span style="color: #339933;">,</span> SEND_FLAG<span style="color: #009900;">&#41;</span><span style="color: #339933;">;</span><br />
+&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; <br />
+&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; <span style="color: #666666; font-style: italic;">// reset the flags and counters</span><br />
+&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; BMS_buffer_idx <span style="color: #339933;">=</span> <span style="color: #0000dd;">0</span><span style="color: #339933;">;</span><br />
+&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; flag_send_can <span style="color: #339933;">=</span> <span style="color: #208080;">0x00</span><span style="color: #339933;">;</span><br />
+&nbsp; &nbsp; &nbsp; &nbsp; <span style="color: #009900;">&#125;</span><br />
+&nbsp; &nbsp; <span style="color: #009900;">&#125;</span><br />
+<span style="color: #009900;">&#125;</span><br />
+<br />
+<br />
+<span style="color: #808080; font-style: italic;">/**<br />
+* The high priority interrupt service routine. &nbsp;This is called<br />
+* if either the LVP or OVP pin changes to high (indicating a fault)<br />
+* or when TMR0 overflows. &nbsp;The ISR handles both of these events<br />
+*/</span><br />
+<span style="color: #993333;">void</span> ISR<span style="color: #009900;">&#40;</span><span style="color: #009900;">&#41;</span> iv <span style="color: #208080;">0x0008</span><br />
+<span style="color: #009900;">&#123;</span><br />
+&nbsp; &nbsp; <span style="color: #666666; font-style: italic;">// start by checking which interrupt was called</span><br />
+&nbsp; &nbsp; <span style="color: #666666; font-style: italic;">// highest priority is the LVP and OVP signals on</span><br />
+&nbsp; &nbsp; <span style="color: #666666; font-style: italic;">// INT0 and INT1</span><br />
+&nbsp; &nbsp; <span style="color: #b1b100;">if</span> <span style="color: #009900;">&#40;</span>INTCON3.<span style="color: #202020;">INT1IF</span> <span style="color: #339933;">==</span> <span style="color: #0000dd;">1</span><span style="color: #009900;">&#41;</span><br />
+&nbsp; &nbsp; <span style="color: #009900;">&#123;</span> &nbsp; <span style="color: #666666; font-style: italic;">// INT1 indicates an over voltage problem</span><br />
+&nbsp; &nbsp; &nbsp; &nbsp; flag_ovp <span style="color: #339933;">=</span> <span style="color: #0000dd;">1</span><span style="color: #339933;">;</span><br />
+&nbsp; &nbsp; &nbsp; &nbsp; INTCON3.<span style="color: #202020;">INT1IF</span> <span style="color: #339933;">=</span> <span style="color: #0000dd;">0</span><span style="color: #339933;">;</span> <span style="color: #666666; font-style: italic;">// reset the interrupt flag to prevent looping</span><br />
+&nbsp; &nbsp; <span style="color: #009900;">&#125;</span><br />
+&nbsp; &nbsp; <span style="color: #b1b100;">else</span> <span style="color: #b1b100;">if</span> <span style="color: #009900;">&#40;</span>INTCON.<span style="color: #202020;">INT0IF</span> <span style="color: #339933;">==</span> <span style="color: #0000dd;">1</span><span style="color: #009900;">&#41;</span><br />
+&nbsp; &nbsp; <span style="color: #009900;">&#123;</span><br />
+&nbsp; &nbsp; &nbsp; &nbsp; <span style="color: #666666; font-style: italic;">// INT0 indicates a low voltage problem</span><br />
+&nbsp; &nbsp; &nbsp; &nbsp; flag_lvp <span style="color: #339933;">=</span> <span style="color: #0000dd;">1</span><span style="color: #339933;">;</span><br />
+&nbsp; &nbsp; &nbsp; &nbsp; INTCON.<span style="color: #202020;">INT0IF</span> <span style="color: #339933;">=</span> <span style="color: #0000dd;">0</span><span style="color: #339933;">;</span> <span style="color: #666666; font-style: italic;">// reset the interrupt flag to prevent looping</span><br />
+&nbsp; &nbsp; <span style="color: #009900;">&#125;</span><br />
+&nbsp; &nbsp; <span style="color: #b1b100;">else</span> <span style="color: #b1b100;">if</span> <span style="color: #009900;">&#40;</span>INTCON.<span style="color: #202020;">T0IF</span> <span style="color: #339933;">==</span> <span style="color: #0000dd;">1</span><span style="color: #009900;">&#41;</span><br />
+&nbsp; &nbsp; <span style="color: #009900;">&#123;</span><br />
+&nbsp; &nbsp; &nbsp; &nbsp; <span style="color: #666666; font-style: italic;">// increment the counter and check if we have reached the limit</span><br />
+&nbsp; &nbsp; &nbsp; &nbsp; tx_counter<span style="color: #339933;">++;</span><br />
+&nbsp; &nbsp; &nbsp; &nbsp; <span style="color: #b1b100;">if</span><span style="color: #009900;">&#40;</span>tx_counter <span style="color: #339933;">&gt;</span> COUNTER_OVERFLOW<span style="color: #009900;">&#41;</span><br />
+&nbsp; &nbsp; &nbsp; &nbsp; <span style="color: #009900;">&#123;</span><br />
+&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; flag_check_bms <span style="color: #339933;">=</span> <span style="color: #0000dd;">1</span><span style="color: #339933;">;</span><br />
+&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; tx_counter <span style="color: #339933;">=</span> <span style="color: #0000dd;">0</span><span style="color: #339933;">;</span><br />
+&nbsp; &nbsp; &nbsp; &nbsp; <span style="color: #009900;">&#125;</span><br />
+&nbsp; &nbsp; &nbsp; &nbsp; INTCON.<span style="color: #202020;">T0IF</span> <span style="color: #339933;">=</span> <span style="color: #0000dd;">0</span><span style="color: #339933;">;</span> <span style="color: #666666; font-style: italic;">// reset the TMR0 interrupt flag</span><br />
+&nbsp; &nbsp; <span style="color: #009900;">&#125;</span><br />
+<span style="color: #009900;">&#125;</span><br />
+<br />
+<br />
+<span style="color: #808080; font-style: italic;">/**<br />
+* The following code was written by James Larminie and Marco Cecotti and<br />
+* modified for purpose by William Hart.<br />
+*<br />
+* Original Comments:<br />
+* This void sets up the CAN bus. Careful reading of the manuals is needed<br />
+&nbsp; &nbsp;to understand what is going on. But it can be taken on trust!! &nbsp; <br />
+*/</span><br />
+<br />
+<span style="color: #993333;">void</span> CANbus_setup<span style="color: #009900;">&#40;</span><span style="color: #009900;">&#41;</span><br />
+<span style="color: #009900;">&#123;</span><br />
+&nbsp; &nbsp; &nbsp;<span style="color: #993333;">char</span> SJW<span style="color: #339933;">,</span> BRP<span style="color: #339933;">,</span> Phase_Seg1<span style="color: #339933;">,</span> Phase_Seg2<span style="color: #339933;">,</span> Prop_Seg<span style="color: #339933;">,</span> txt<span style="color: #009900;">&#91;</span><span style="color: #0000dd;">4</span><span style="color: #009900;">&#93;</span><span style="color: #339933;">;</span><br />
+&nbsp; &nbsp; &nbsp;<span style="color: #993333;">unsigned</span> <span style="color: #993333;">short</span> init_flag<span style="color: #339933;">;</span><br />
+&nbsp; &nbsp; &nbsp;<span style="color: #993333;">long</span> mask<span style="color: #339933;">;</span><br />
+<span style="color: #808080; font-style: italic;">/*<br />
+&nbsp; &nbsp;CAN BUS Timing Parameters<br />
+*/</span><br />
+&nbsp; &nbsp; &nbsp;SJW <span style="color: #339933;">=</span> <span style="color: #0000dd;">1</span><span style="color: #339933;">;</span><br />
+&nbsp; &nbsp; &nbsp;BRP <span style="color: #339933;">=</span> <span style="color: #0000dd;">1</span><span style="color: #339933;">;</span><br />
+&nbsp; &nbsp; &nbsp;Phase_Seg1 <span style="color: #339933;">=</span> <span style="color: #0000dd;">6</span><span style="color: #339933;">;</span><br />
+&nbsp; &nbsp; &nbsp;Phase_Seg2 <span style="color: #339933;">=</span> <span style="color: #0000dd;">7</span><span style="color: #339933;">;</span><br />
+&nbsp; &nbsp; &nbsp;Prop_Seg <span style="color: #339933;">=</span> <span style="color: #0000dd;">6</span><span style="color: #339933;">;</span><br />
+<br />
+&nbsp; &nbsp; &nbsp;init_flag <span style="color: #339933;">=</span> _CAN_CONFIG_SAMPLE_THRICE &nbsp;<span style="color: #339933;">&amp;</span><br />
+&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp;_CAN_CONFIG_PHSEG2_PRG_ON &nbsp;<span style="color: #339933;">&amp;</span><br />
+&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp;_CAN_CONFIG_STD_MSG &nbsp; &nbsp; &nbsp; &nbsp;<span style="color: #339933;">&amp;</span><br />
+&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp;_CAN_CONFIG_DBL_BUFFER_ON &nbsp;<span style="color: #339933;">&amp;</span><br />
+&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp;_CAN_CONFIG_VALID_STD_MSG <span style="color: #339933;">&amp;</span><br />
+&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp;_CAN_CONFIG_LINE_FILTER_OFF<span style="color: #339933;">;</span><br />
+<span style="color: #808080; font-style: italic;">/*<br />
+&nbsp; Initialise CAN module<br />
+*/</span><br />
+&nbsp; &nbsp; &nbsp; CANInitialize<span style="color: #009900;">&#40;</span>SJW<span style="color: #339933;">,</span> BRP<span style="color: #339933;">,</span> Phase_Seg1<span style="color: #339933;">,</span> Phase_Seg2<span style="color: #339933;">,</span> Prop_Seg<span style="color: #339933;">,</span> init_flag<span style="color: #009900;">&#41;</span><span style="color: #339933;">;</span><br />
+<span style="color: #808080; font-style: italic;">/*<br />
+&nbsp; &nbsp;Set CAN CONFIG mode<br />
+*/</span><br />
+&nbsp; &nbsp; &nbsp;CANSetOperationMode<span style="color: #009900;">&#40;</span>_CAN_MODE_CONFIG<span style="color: #339933;">,</span> <span style="color: #208080;">0xFF</span><span style="color: #009900;">&#41;</span><span style="color: #339933;">;</span><br />
+<br />
+&nbsp; &nbsp; &nbsp; mask <span style="color: #339933;">=</span> <span style="color: #339933;">-</span><span style="color: #0000dd;">1</span><span style="color: #339933;">;</span><br />
+<span style="color: #808080; font-style: italic;">/* Set all MASK1 bits to 1's<br />
+*/</span><br />
+&nbsp; &nbsp; &nbsp; CANSetMask<span style="color: #009900;">&#40;</span>_CAN_MASK_B1<span style="color: #339933;">,</span> mask<span style="color: #339933;">,</span> _CAN_CONFIG_STD_MSG<span style="color: #009900;">&#41;</span><span style="color: #339933;">;</span><br />
+<span style="color: #808080; font-style: italic;">/*<br />
+&nbsp; &nbsp;Set all MASK2 bits to 1's &nbsp; &nbsp;*/</span><br />
+&nbsp; &nbsp; &nbsp; CANSetMask<span style="color: #009900;">&#40;</span>_CAN_MASK_B2<span style="color: #339933;">,</span> mask<span style="color: #339933;">,</span> _CAN_CONFIG_STD_MSG<span style="color: #009900;">&#41;</span><span style="color: #339933;">;</span><br />
+<br />
+<span style="color: #808080; font-style: italic;">/* Filter 0x50 (temp node) and 0x202 (rear node) only &nbsp; */</span><br />
+<br />
+&nbsp; &nbsp; &nbsp; CANSetFilter<span style="color: #009900;">&#40;</span>_CAN_FILTER_B1_F1<span style="color: #339933;">,</span><span style="color: #208080;">0x202</span><span style="color: #339933;">,</span>_CAN_CONFIG_STD_MSG<span style="color: #009900;">&#41;</span><span style="color: #339933;">;</span><br />
+<br />
+&nbsp; &nbsp; &nbsp; CANSetFilter<span style="color: #009900;">&#40;</span>_CAN_FILTER_B1_F2<span style="color: #339933;">,</span><span style="color: #208080;">0x50</span><span style="color: #339933;">,</span>_CAN_CONFIG_STD_MSG<span style="color: #009900;">&#41;</span><span style="color: #339933;">;</span><br />
+<br />
+<span style="color: #808080; font-style: italic;">/* Now set CAN module to NORMAL mode, as setup done. &nbsp; */</span><br />
+<br />
+&nbsp; &nbsp; &nbsp; CANSetOperationMode<span style="color: #009900;">&#40;</span>_CAN_MODE_NORMAL<span style="color: #339933;">,</span> <span style="color: #208080;">0xFF</span><span style="color: #009900;">&#41;</span><span style="color: #339933;">;</span><br />
+<span style="color: #009900;">&#125;</span><span style="color: #808080; font-style: italic;">/* The CANbus is now set up and ready for use &nbsp;*/</span><br />
+<br />
+<br />
+<span style="color: #808080; font-style: italic;">/*<br />
+* Loops through the CAN data array and clears previous values<br />
+*/</span><br />
+<span style="color: #993333;">void</span> reset_candata<span style="color: #009900;">&#40;</span><span style="color: #009900;">&#41;</span><br />
+<span style="color: #009900;">&#123;</span><br />
+&nbsp; &nbsp; <span style="color: #993333;">int</span> i<span style="color: #339933;">;</span><br />
+&nbsp; &nbsp; <span style="color: #b1b100;">for</span> <span style="color: #009900;">&#40;</span>i <span style="color: #339933;">=</span> <span style="color: #0000dd;">0</span><span style="color: #339933;">;</span> i <span style="color: #339933;">&lt;</span> <span style="color: #0000dd;">8</span><span style="color: #339933;">;</span> i<span style="color: #339933;">++</span><span style="color: #009900;">&#41;</span><br />
+&nbsp; &nbsp; <span style="color: #009900;">&#123;</span><br />
+&nbsp; &nbsp; &nbsp; &nbsp; CAN_data<span style="color: #009900;">&#91;</span>i<span style="color: #009900;">&#93;</span> <span style="color: #339933;">=</span> <span style="color: #0000dd;">0</span><span style="color: #339933;">;</span><br />
+&nbsp; &nbsp; <span style="color: #009900;">&#125;</span><br />
+<span style="color: #009900;">&#125;</span><br />
+<br />
+<br />
+<span style="color: #808080; font-style: italic;">/**<br />
+* This function performs microcontroller setup, including CANBus settings,<br />
+* serial comms settings and disabling peripherals that aren't required<br />
+*/</span><br />
+<span style="color: #993333;">void</span> setup<span style="color: #009900;">&#40;</span><span style="color: #009900;">&#41;</span><br />
+<span style="color: #009900;">&#123;</span><br />
+&nbsp; &nbsp; <span style="color: #666666; font-style: italic;">// set up default port settings</span><br />
+&nbsp; &nbsp; TRISA <span style="color: #339933;">=</span> <span style="color: #0000dd;">0</span><span style="color: #339933;">;</span> <span style="color: #666666; font-style: italic;">// default PORTA to output</span><br />
+&nbsp; &nbsp; TRISB <span style="color: #339933;">=</span> <span style="color: #0000dd;">0</span><span style="color: #339933;">;</span> <span style="color: #666666; font-style: italic;">// default PORTB to output</span><br />
+&nbsp; &nbsp; TRISC <span style="color: #339933;">=</span> <span style="color: #0000dd;">0</span><span style="color: #339933;">;</span> <span style="color: #666666; font-style: italic;">// default PORTC to output</span><br />
+<br />
+&nbsp; &nbsp; <span style="color: #666666; font-style: italic;">// set up the interrupts for LVP / OVP on rising edge</span><br />
+&nbsp; &nbsp; INTCON.<span style="color: #202020;">GIE</span> <span style="color: #339933;">=</span> <span style="color: #0000dd;">1</span><span style="color: #339933;">;</span> &nbsp; &nbsp;<span style="color: #666666; font-style: italic;">// enable global interrupts</span><br />
+&nbsp; &nbsp; INTCON.<span style="color: #202020;">PEIE</span> <span style="color: #339933;">=</span> <span style="color: #0000dd;">1</span><span style="color: #339933;">;</span> &nbsp; <span style="color: #666666; font-style: italic;">// enable peripheral interrupts</span><br />
+&nbsp; &nbsp; INTCON.<span style="color: #202020;">TMR0IE</span> <span style="color: #339933;">=</span> <span style="color: #0000dd;">1</span><span style="color: #339933;">;</span> <span style="color: #666666; font-style: italic;">// enable timer 0 interrupts to control</span><br />
+&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp;<span style="color: #666666; font-style: italic;">// BMS polling frequency</span><br />
+&nbsp; &nbsp; INTCON2.<span style="color: #202020;">RBPU</span> <span style="color: #339933;">=</span> <span style="color: #0000dd;">1</span><span style="color: #339933;">;</span> &nbsp;<span style="color: #666666; font-style: italic;">// disable pull ups on PORTB</span><br />
+&nbsp; &nbsp; INTCON2.<span style="color: #202020;">INTEDG0</span> <span style="color: #339933;">=</span> <span style="color: #0000dd;">1</span><span style="color: #339933;">;</span> <span style="color: #666666; font-style: italic;">// interrupt INT0 on rising edge</span><br />
+&nbsp; &nbsp; INTCON2.<span style="color: #202020;">INTEDG1</span> <span style="color: #339933;">=</span> <span style="color: #0000dd;">1</span><span style="color: #339933;">;</span> <span style="color: #666666; font-style: italic;">// interrupt INT1 on rising edge</span><br />
+&nbsp; &nbsp; INTCON2.<span style="color: #202020;">TMR0IP</span> <span style="color: #339933;">=</span> <span style="color: #0000dd;">1</span><span style="color: #339933;">;</span> <span style="color: #666666; font-style: italic;">// TMR0 interrupts are high priority</span><br />
+&nbsp; &nbsp; INTCON3.<span style="color: #202020;">INT2IE</span> <span style="color: #339933;">=</span> <span style="color: #0000dd;">0</span><span style="color: #339933;">;</span> <span style="color: #666666; font-style: italic;">// disable INT2</span><br />
+&nbsp; &nbsp; INTCON3.<span style="color: #202020;">INT1IE</span> <span style="color: #339933;">=</span> <span style="color: #0000dd;">1</span><span style="color: #339933;">;</span> <span style="color: #666666; font-style: italic;">// enable INT1</span><br />
+&nbsp; &nbsp; INTCON.<span style="color: #202020;">INT0IE</span> <span style="color: #339933;">=</span> <span style="color: #0000dd;">1</span><span style="color: #339933;">;</span> <span style="color: #666666; font-style: italic;">// enable INT0</span><br />
+<br />
+&nbsp; &nbsp; <span style="color: #666666; font-style: italic;">// enable the serial module</span><br />
+&nbsp; &nbsp; RCSTA.<span style="color: #202020;">SPEN</span> <span style="color: #339933;">=</span> <span style="color: #0000dd;">1</span><span style="color: #339933;">;</span> <span style="color: #666666; font-style: italic;">// enable the serial port</span><br />
+&nbsp; &nbsp; RCSTA.<span style="color: #202020;">RX9</span> <span style="color: #339933;">=</span> <span style="color: #0000dd;">0</span><span style="color: #339933;">;</span> <span style="color: #666666; font-style: italic;">// 8 bit mode</span><br />
+&nbsp; &nbsp; TXSTA.<span style="color: #202020;">SYNC</span> <span style="color: #339933;">=</span> <span style="color: #0000dd;">0</span><span style="color: #339933;">;</span> <span style="color: #666666; font-style: italic;">// start in asynchronous mode</span><br />
+&nbsp; &nbsp; TRISC.<span style="color: #202020;">B7</span> <span style="color: #339933;">=</span> <span style="color: #0000dd;">1</span><span style="color: #339933;">;</span> <span style="color: #666666; font-style: italic;">// set the RX bit to output</span><br />
+<br />
+&nbsp; &nbsp; <span style="color: #666666; font-style: italic;">// configure the serial baud rate using the baud rate generator</span><br />
+&nbsp; &nbsp; TXSTA.<span style="color: #202020;">BRGH</span> <span style="color: #339933;">=</span> <span style="color: #0000dd;">1</span><span style="color: #339933;">;</span> <span style="color: #666666; font-style: italic;">// High speed serial</span><br />
+&nbsp; &nbsp; SPBRG <span style="color: #339933;">=</span> <span style="color: #0000dd;">64</span><span style="color: #339933;">;</span> <span style="color: #666666; font-style: italic;">// set the baud to 20Mhz / 19200 baud</span><br />
+&nbsp; &nbsp; <br />
+&nbsp; &nbsp; <span style="color: #666666; font-style: italic;">// now perform the uart init</span><br />
+&nbsp; &nbsp; UART1_init<span style="color: #009900;">&#40;</span><span style="color: #0000dd;">19200</span><span style="color: #009900;">&#41;</span><span style="color: #339933;">;</span><br />
+<br />
+&nbsp; &nbsp; <span style="color: #666666; font-style: italic;">// set up the can module</span><br />
+&nbsp; &nbsp; TRISB.<span style="color: #202020;">B3</span> <span style="color: #339933;">=</span> <span style="color: #0000dd;">1</span><span style="color: #339933;">;</span> <span style="color: #666666; font-style: italic;">// set CANRX for outputting transmission</span><br />
+&nbsp; &nbsp; TRISB.<span style="color: #202020;">B2</span> <span style="color: #339933;">=</span> <span style="color: #0000dd;">0</span><span style="color: #339933;">;</span> <span style="color: #666666; font-style: italic;">// clear CANTX for inputting signal</span><br />
+<br />
+&nbsp; &nbsp; <span style="color: #666666; font-style: italic;">// set up TIMER0 to use to control our BMS polling rate</span><br />
+&nbsp; &nbsp; T0CON.<span style="color: #202020;">TMR0ON</span> <span style="color: #339933;">=</span> <span style="color: #0000dd;">1</span><span style="color: #339933;">;</span> <span style="color: #666666; font-style: italic;">// turn on timer 0</span><br />
+&nbsp; &nbsp; T0CON.<span style="color: #202020;">T08BIT</span> <span style="color: #339933;">=</span> <span style="color: #0000dd;">0</span><span style="color: #339933;">;</span> <span style="color: #666666; font-style: italic;">// set up as a 16 bit timer</span><br />
+&nbsp; &nbsp; T0CON.<span style="color: #202020;">T0CS</span> <span style="color: #339933;">=</span> <span style="color: #0000dd;">0</span><span style="color: #339933;">;</span> <span style="color: #666666; font-style: italic;">// use CLK0 as the timing signal</span><br />
+&nbsp; &nbsp; T0CON.<span style="color: #202020;">PSA</span> <span style="color: #339933;">=</span> <span style="color: #0000dd;">0</span><span style="color: #339933;">;</span> <span style="color: #666666; font-style: italic;">// do not use the prescaler</span><br />
+&nbsp; &nbsp; T0CON.<span style="color: #202020;">T0PS2</span> <span style="color: #339933;">=</span> <span style="color: #0000dd;">1</span><span style="color: #339933;">;</span> <span style="color: #666666; font-style: italic;">// set the prescaler to 1:256</span><br />
+&nbsp; &nbsp; T0CON.<span style="color: #202020;">T0PS1</span> <span style="color: #339933;">=</span> <span style="color: #0000dd;">1</span><span style="color: #339933;">;</span> <span style="color: #666666; font-style: italic;">// this gives us an overflow of TMR0 every 0xFFFF * 256</span><br />
+&nbsp; &nbsp; T0CON.<span style="color: #202020;">T0PS0</span> <span style="color: #339933;">=</span> <span style="color: #0000dd;">1</span><span style="color: #339933;">;</span> <span style="color: #666666; font-style: italic;">// clock cycles (at 20Mhz)</span><br />
+<br />
+&nbsp; &nbsp; <span style="color: #666666; font-style: italic;">// perform CAN bus setup</span><br />
+&nbsp; &nbsp; CANbus_setup<span style="color: #009900;">&#40;</span><span style="color: #009900;">&#41;</span><span style="color: #339933;">;</span><br />
+<br />
+&nbsp; &nbsp; <span style="color: #666666; font-style: italic;">// initialise other values</span><br />
+&nbsp; &nbsp; tx_counter <span style="color: #339933;">=</span> <span style="color: #0000dd;">0</span><span style="color: #339933;">;</span> <span style="color: #666666; font-style: italic;">// reset the transmit counter</span><br />
+&nbsp; &nbsp; flag_ovp <span style="color: #339933;">=</span> <span style="color: #0000dd;">0</span><span style="color: #339933;">;</span> <span style="color: #666666; font-style: italic;">// no ovp problem</span><br />
+&nbsp; &nbsp; flag_lvp <span style="color: #339933;">=</span> <span style="color: #0000dd;">0</span><span style="color: #339933;">;</span> <span style="color: #666666; font-style: italic;">// no lvp problem</span><br />
+&nbsp; &nbsp; flag_check_bms <span style="color: #339933;">=</span> <span style="color: #0000dd;">0</span><span style="color: #339933;">;</span> <span style="color: #666666; font-style: italic;">// don't check BMS</span><br />
+&nbsp; &nbsp; flag_send_can <span style="color: #339933;">=</span> <span style="color: #0000dd;">0</span><span style="color: #339933;">;</span> <span style="color: #666666; font-style: italic;">// no can messages to send yet</span><br />
+&nbsp; &nbsp; current_cell <span style="color: #339933;">=</span> <span style="color: #0000dd;">1</span><span style="color: #339933;">;</span> <span style="color: #666666; font-style: italic;">// start by querying cell #1</span><br />
+&nbsp; &nbsp; <br />
+<span style="color: #009900;">&#125;</span><br />
+&nbsp;</div>
+</body>
+</html>

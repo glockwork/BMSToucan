@@ -90,6 +90,7 @@ void main() {
     // main loop
     for(;;)
     {
+    /*
         // clear previous CAN_data[] values
         reset_candata();
         
@@ -177,7 +178,10 @@ void main() {
             // reset the flags and counters
             BMS_buffer_idx = 0;
             flag_send_can = 0x00;
-        }
+
+        } 
+        */
+        PORTC.B6 = 1;
     }
 }
 
@@ -231,9 +235,8 @@ void CANbus_setup()
      char SJW, BRP, Phase_Seg1, Phase_Seg2, Prop_Seg, txt[4];
      unsigned short init_flag;
      long mask;
-/*
-   CAN BUS Timing Parameters
-*/
+
+     // CAN BUS Timing Parameters
      SJW = 1;
      BRP = 1;
      Phase_Seg1 = 6;
@@ -246,33 +249,28 @@ void CANbus_setup()
                  _CAN_CONFIG_DBL_BUFFER_ON  &
                  _CAN_CONFIG_VALID_STD_MSG &
                  _CAN_CONFIG_LINE_FILTER_OFF;
-/*
-  Initialise CAN module
-*/
-      CANInitialize(SJW, BRP, Phase_Seg1, Phase_Seg2, Prop_Seg, init_flag);
-/*
-   Set CAN CONFIG mode
-*/
-     CANSetOperationMode(_CAN_MODE_CONFIG, 0xFF);
 
+      // Initialise CAN module
+      CANInitialize(SJW, BRP, Phase_Seg1, Phase_Seg2, Prop_Seg, init_flag);
+
+      // Set CAN config mode
+      CANSetOperationMode(_CAN_MODE_CONFIG, 0xFF);
+
+      // set all MASK1 bits to -1s
       mask = -1;
-/* Set all MASK1 bits to 1's
-*/
       CANSetMask(_CAN_MASK_B1, mask, _CAN_CONFIG_STD_MSG);
-/*
-   Set all MASK2 bits to 1's    */
+
+      // set all MASK2 bits to 1s
       CANSetMask(_CAN_MASK_B2, mask, _CAN_CONFIG_STD_MSG);
 
-/* Filter 0x50 (temp node) and 0x202 (rear node) only   */
-
+      // Filter 0x50 (temp node) and 0x202 (rear node) only
       CANSetFilter(_CAN_FILTER_B1_F1,0x202,_CAN_CONFIG_STD_MSG);
 
       CANSetFilter(_CAN_FILTER_B1_F2,0x50,_CAN_CONFIG_STD_MSG);
 
-/* Now set CAN module to NORMAL mode, as setup done.   */
-
+      // Now set CAN module to NORMAL mode, as setup done
       CANSetOperationMode(_CAN_MODE_NORMAL, 0xFF);
-}/* The CANbus is now set up and ready for use  */
+} // The CANbus is now set up and ready for use
 
 
 /*
@@ -312,7 +310,7 @@ void setup()
     INTCON3.INT1IE = 1; // enable INT1
     INTCON.INT0IE = 1; // enable INT0
 
-    // enable the serial module
+    /* enable the serial module
     RCSTA.SPEN = 1; // enable the serial port
     RCSTA.RX9 = 0; // 8 bit mode
     TXSTA.SYNC = 0; // start in asynchronous mode
@@ -328,7 +326,7 @@ void setup()
     // set up the can module
     TRISB.B3 = 1; // set CANRX for outputting transmission
     TRISB.B2 = 0; // clear CANTX for inputting signal
-
+    */
     // set up TIMER0 to use to control our BMS polling rate
     T0CON.TMR0ON = 1; // turn on timer 0
     T0CON.T08BIT = 0; // set up as a 16 bit timer
@@ -339,7 +337,7 @@ void setup()
     T0CON.T0PS0 = 1; // clock cycles (at 20Mhz)
 
     // perform CAN bus setup
-    CANbus_setup();
+    //CANbus_setup();
 
     // initialise other values
     tx_counter = 0; // reset the transmit counter

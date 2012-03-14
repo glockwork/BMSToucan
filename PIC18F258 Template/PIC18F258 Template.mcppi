@@ -6,26 +6,27 @@ Value=-1
 [BUILD_TYPE]
 Value=0
 [ACTIVE_TAB]
-Value=BMSToucan.c
+Value=PIC18F258 Template.c
 [USE_EEPROM]
 Value=0
 [USE_HEAP]
 Value=0
 [HEAP_SIZE]
-Value=2000
+Value=0
 [EEPROM_DEFINITION]
 Value=
 [FILES]
 Count=1
-File0=BMSToucan.c
+File0=PIC18F258 Template.c
 [BINARIES]
 Count=0
 [IMAGES]
 Count=0
 ActiveImageIndex=-1
 [OPENED_FILES]
-Count=1
-File0=BMSToucan.c
+Count=2
+File0=PIC18F258 Template.c
+File1=..\BMSToucan.c
 [EEPROM]
 Count=0
 [ACTIVE_COMMENTS_FILES]
@@ -33,13 +34,10 @@ Count=0
 [OTHER_FILES]
 Count=0
 [SEARCH_PATH]
-Count=6
+Count=3
 Path0=C:\Program Files\mikroC PRO for PIC\defs\
 Path1=C:\Program Files\mikroC PRO for PIC\uses\P18\
-Path2=C:\Users\mecharius\Dropbox\Projects\HXN-5 BMStoCAN\Code\
-Path3=c:\Programs\Mikroelektronika\mikroC PRO for PIC\defs\
-Path4=c:\Programs\Mikroelektronika\mikroC PRO for PIC\uses\P18\
-Path5=C:\Users\mecharius\Dropbox\Projects\HXN-5 BMStoCAN\
+Path2=C:\Users\mecharius\Dropbox\Projects\HXN-5 BMStoCAN\Code\PIC18F258 Template\
 [HEADER_PATH]
 Count=0
 [HEADERS]

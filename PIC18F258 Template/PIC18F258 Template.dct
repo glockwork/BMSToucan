@@ -243,7 +243,6 @@ abhuffacsymbol
 abhuffacsymlen
 abhuffdcsymbol
 abhuffdcsymlen
-aborted_bms_checks
 abs
 access
 ackdt
@@ -334,20 +333,6 @@ bljfif
 blquantuses16bits
 bmajorrev
 bminorrev
-bms_buffer
-bms_buffer_idx
-bms_error_bit
-bms_query_bit_1
-bms_query_bit_2
-bms_query_length
-bms_v1_b1
-bms_v1_b2
-bms_v2_b1
-bms_v2_b2
-bms_v3_b1
-bms_v3_b2
-bms_v4_b1
-bms_v4_b2
 bor
 bor_bit
 brgcon1
@@ -375,9 +360,6 @@ bytetohex
 bytetostr
 c
 c_bit
-can_address
-can_data
-canbus_setup
 cancap
 cancap_bit
 cancon
@@ -431,7 +413,6 @@ ccpr1
 ccpr1h
 ccpr1l
 ceil
-cell_num_bit
 cf_detect
 cf_disable
 cf_enable
@@ -519,12 +500,10 @@ comstat
 cos
 cose3
 cosh
-counter_overflow
 cren
 cren_bit
 csrc
 csrc_bit
-current_cell
 cvref
 cvref_bit
 d
@@ -924,10 +903,7 @@ filhit1_bit
 filhit2
 filhit2_bit
 fixsign32
-flag_check_bms
-flag_lvp
-flag_ovp
-flag_send_can
+flag_timer_overflow
 flash_erase_64
 flash_erase_write_64
 flash_read
@@ -1103,6 +1079,7 @@ intedg1
 intedg1_bit
 intedg2
 intedg2_bit
+interrupt_setup
 inttohex
 inttostr
 inttostrwithzeros
@@ -1245,8 +1222,8 @@ man_send
 man_send_init
 man_synchro
 max
-max_bms_check_aborts
 max_files
+max_overflows
 memchr
 memcmp
 memcpy
@@ -1344,7 +1321,6 @@ not_write_bit
 nr_free_blocks
 nrm3232
 nrm4032
-number_of_cells
 oerr
 oerr_bit
 opmode0
@@ -1738,7 +1714,6 @@ resb0_rxb0dlc_bit
 resb1
 resb1_bit
 resb1_rxb0dlc_bit
-reset_candata
 ri
 ri_bit
 rs485master_init
@@ -2226,7 +2201,6 @@ seg2phts
 seg2phts_bit
 sen
 sen_bit
-send_flag
 setfdz32
 setfov32
 setfun32
@@ -2957,6 +2931,7 @@ tft_write_text_return_pos
 time_datetoepoch
 time_epochtodate
 time_jd1970
+timer_count
 tmr0h
 tmr0ie
 tmr0ie_bit
@@ -3087,7 +3062,6 @@ trmt
 trmt_bit
 tx
 tx_bit
-tx_counter
 tx0ie
 tx0ie_bit
 tx0if
@@ -3618,10 +3592,6 @@ uart1_tx_idle
 uart1_write
 uart1_write_text
 uldiv
-v1_bit
-v2_bit
-v3_bit
-v4_bit
 vdelay_advanced_ms
 vdelay_ms
 vrefm
