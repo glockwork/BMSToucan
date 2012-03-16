@@ -33,11 +33,12 @@ void reset_candata();
 const short SEND_FLAG =_CAN_TX_PRIORITY_0 & _CAN_TX_NO_RTR_FRAME;
 const int NUMBER_OF_CELLS = 18; // the number of battery cells to check
 const long CAN_ADDRESS = 0x88; // the address of this can message
-const unsigned int COUNTER_OVERFLOW = 38; // counter overflows after this many loops
+const unsigned int COUNTER_OVERFLOW = 38; 
+        // the "check_bms" flag is set after Timer0 overflows this many times
         // this is calculated as we are running at 20MHz which is 5MIPS...
-        // as our timer is in 16bit mode this means 65535 instructions between
-        // interrupts.  We want to update at 2Hz, and 65535 * 38 is approximately
-        // 2.5 million, or 0.5 seconds.
+        // as our timer is in 8bit mode, prescaled 1:256 this means 65535 
+        // instructions between interrupts.  We want to update at 2Hz, 
+        // and 65535 * 38 is approximately 2.5 million, or 0.5 seconds per check
 const unsigned char BMS_ERROR_BIT = 6; // B0 = OVP, B1 = LVP, B2 = Comms
 const unsigned char V4_BIT = 4;
 const unsigned char V3_BIT = 3;
@@ -90,23 +91,22 @@ void main() {
     // main loop
     for(;;)
     {
-    /*
+
         // clear previous CAN_data[] values
         reset_candata();
-        
+
         // check for flags
-        if (flag_ovp) {
+        if (flag_ovp == 0x01) {
             // we have found an OVP problem - set the appropriate CAN byte
             CAN_data[BMS_ERROR_BIT].B0 = 1;
         }
-        if (flag_lvp) {
+        if (flag_lvp = 0x01) {
             // we have found an LVP problem - set the appropriate CAN byte
             CAN_data[BMS_ERROR_BIT].B1 = 1;
         }
-        
+
         // now check if we need to update BMS status
-        if (flag_check_bms) {
-            
+        if (flag_check_bms == 0x01) {
             // first check if we are still waiting on data from the last
             // BMS Query.  If we are then abort this check and increment
             // our "aborted_bms_checks" counter.  If this counter reaches
@@ -141,6 +141,8 @@ void main() {
                 UART1_Write(current_cell);
                 UART1_Write(current_cell);
             }
+            
+            flag_check_bms = 0; // reset the BMS flag
         }
         
         // read serial information if we have any
@@ -168,7 +170,7 @@ void main() {
 
             }
         }
-        
+
         // write the CAN message if it is ready
         if(flag_send_can == 0x01)
         {
@@ -180,8 +182,6 @@ void main() {
             flag_send_can = 0x00;
 
         } 
-        */
-        PORTC.B6 = 1;
     }
 }
 
@@ -198,25 +198,25 @@ void ISR() iv 0x0008
     // INT0 and INT1
     if (INTCON3.INT1IF == 1)
     {   // INT1 indicates an over voltage problem
-        flag_ovp = 1;
+        flag_ovp = 0x01;
         INTCON3.INT1IF = 0; // reset the interrupt flag to prevent looping
     }
     else if (INTCON.INT0IF == 1)
     {
         // INT0 indicates a low voltage problem
-        flag_lvp = 1;
+        flag_lvp = 0x01;
         INTCON.INT0IF = 0; // reset the interrupt flag to prevent looping
     }
-    else if (INTCON.T0IF == 1)
+    else if (INTCON.TMR0IF == 1)
     {
         // increment the counter and check if we have reached the limit
         tx_counter++;
         if(tx_counter > COUNTER_OVERFLOW)
         {
-            flag_check_bms = 1;
+            flag_check_bms = 0x01;
             tx_counter = 0;
         }
-        INTCON.T0IF = 0; // reset the TMR0 interrupt flag
+        INTCON.TMR0IF = 0; // reset the TMR0 interrupt flag
     }
 }
 
@@ -296,6 +296,11 @@ void setup()
     TRISA = 0; // default PORTA to output
     TRISB = 0; // default PORTB to output
     TRISC = 0; // default PORTC to output
+    
+    // clear all the output latches
+    LATA = 0;
+    LATB = 0;
+    LATC = 0;
 
     // set up the interrupts for LVP / OVP on rising edge
     INTCON.GIE = 1;    // enable global interrupts
@@ -310,34 +315,25 @@ void setup()
     INTCON3.INT1IE = 1; // enable INT1
     INTCON.INT0IE = 1; // enable INT0
 
-    /* enable the serial module
-    RCSTA.SPEN = 1; // enable the serial port
-    RCSTA.RX9 = 0; // 8 bit mode
-    TXSTA.SYNC = 0; // start in asynchronous mode
-    TRISC.B7 = 1; // set the RX bit to output
-
-    // configure the serial baud rate using the baud rate generator
-    TXSTA.BRGH = 1; // High speed serial
-    SPBRG = 64; // set the baud to 20Mhz / 19200 baud
-    
-    // now perform the uart init
+    // enable the serial module
     UART1_init(19200);
 
     // set up the can module
     TRISB.B3 = 1; // set CANRX for outputting transmission
     TRISB.B2 = 0; // clear CANTX for inputting signal
-    */
+
     // set up TIMER0 to use to control our BMS polling rate
     T0CON.TMR0ON = 1; // turn on timer 0
-    T0CON.T08BIT = 0; // set up as a 16 bit timer
-    T0CON.T0CS = 0; // use CLK0 as the timing signal
-    T0CON.PSA = 0; // do not use the prescaler
-    T0CON.T0PS2 = 1; // set the prescaler to 1:256
-    T0CON.T0PS1 = 1; // this gives us an overflow of TMR0 every 0xFFFF * 256
-    T0CON.T0PS0 = 1; // clock cycles (at 20Mhz)
+    T0CON.T08BIT = 1; // set up as an 8 bit timer
+    T0CON.T0CS = 0; // use the instruction clock as the timing signal
+    T0CON.PSA = 0; // use the prescaler
+    T0CON |= 0b00000111; // set a 1:256 prescaler on the T0
+                         // this means that it will interrupt every 65536 processor
+                         // instructions, or every 1/76th of a second as we are
+                         // running at 20Mhz, or 5MIPS.
 
     // perform CAN bus setup
-    //CANbus_setup();
+    CANbus_setup();
 
     // initialise other values
     tx_counter = 0; // reset the transmit counter
@@ -346,5 +342,4 @@ void setup()
     flag_check_bms = 0; // don't check BMS
     flag_send_can = 0; // no can messages to send yet
     current_cell = 1; // start by querying cell #1
-    
 }
