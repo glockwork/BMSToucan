@@ -142,7 +142,7 @@ void main() {
                 UART1_Write(current_cell);
             }
             
-            flag_check_bms = 0; // reset the BMS flag
+            flag_check_bms = 0x00; // reset the BMS flag
         }
         
         // read serial information if we have any
@@ -180,7 +180,6 @@ void main() {
             // reset the flags and counters
             BMS_buffer_idx = 0;
             flag_send_can = 0x00;
-
         } 
     }
 }
@@ -229,7 +228,6 @@ void ISR() iv 0x0008
 * This void sets up the CAN bus. Careful reading of the manuals is needed
    to understand what is going on. But it can be taken on trust!!   
 */
-
 void CANbus_setup()
 {
      char SJW, BRP, Phase_Seg1, Phase_Seg2, Prop_Seg, txt[4];
@@ -316,6 +314,8 @@ void setup()
     INTCON.INT0IE = 1; // enable INT0
 
     // enable the serial module
+    TRISC.B7 = 1; // set RX to input
+    TRISC.B6 = 0; // set TX to output
     UART1_init(19200);
 
     // set up the can module
