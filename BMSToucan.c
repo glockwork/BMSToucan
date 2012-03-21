@@ -132,14 +132,17 @@ void main() {
                 {
                     current_cell = 1; // move back to the first cell
                 }
-
+                
                 // query the battery - start by sending the start bits
-                UART1_Write(BMS_QUERY_BIT_1);
-                UART1_Write(BMS_QUERY_BIT_2);
+                PORTC.B4 = 1;
+                TXREG = 0x01010101;
+                PORTC.B4 = 0;
+                //UART1_Write(BMS_QUERY_BIT_1);
+                //UART1_Write(BMS_QUERY_BIT_2);
 
                 // now send the cell group number we are querying (sent twice)
-                UART1_Write(current_cell);
-                UART1_Write(current_cell);
+                //UART1_Write(current_cell);
+                //UART1_Write(current_cell);
             }
             
             flag_check_bms = 0x00; // reset the BMS flag
@@ -316,7 +319,15 @@ void setup()
     // enable the serial module
     TRISC.B7 = 1; // set RX to input
     TRISC.B6 = 0; // set TX to output
-    UART1_init(19200);
+    SPBRG = 64; // set the baud rate at 19.23Kbps @ 20MHz clock
+    TXSTA.BRGH = 1; // high speed baud mode
+    TXSTA.SYNC = 0; // asynchronous mode
+    RCSTA.SPEN = 1; // enable the serial port
+    TXSTA.TXEN = 1; // enable transmission
+    RCSTA.CREN = 1; // enable receival
+    TXSTA.TX9 = 0; // 8 bit transmission
+    RCSTA.RX9 = 0; // 8 bit reception
+    //UART1_init(19200);
 
     // set up the can module
     TRISB.B3 = 1; // set CANRX for outputting transmission
