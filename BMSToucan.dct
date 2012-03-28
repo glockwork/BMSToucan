@@ -431,6 +431,7 @@ ccpr1
 ccpr1h
 ccpr1l
 ceil
+cell_ids
 cell_num_bit
 cf_detect
 cf_disable
@@ -2862,6 +2863,7 @@ tec6
 tec6_bit
 tec7
 tec7_bit
+temp
 tft_16bit_circle
 tft_16bit_color16bittorgb
 tft_16bit_defaultfont

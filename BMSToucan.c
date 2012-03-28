@@ -1,6 +1,6 @@
 /**
 *   BMS Toucan, William Hart for Oxford Brookes Racing
-*   11082131@brookes.ac.uk / hart.wl@gmail.com
+*   11082131@brookes.ac.uk or hart.wl@gmail.com
 *
 *   This module queries the BMS cells at a rate of 2Hz.  On each cycle
 *   one cell grouping is queried via the serial connections.  (One cell
@@ -22,7 +22,7 @@
 */
 
 
-// forward function delcarations
+// forward function declarations
 void setup();
 void ISR();
 void CANbus_setup();
@@ -31,7 +31,6 @@ void reset_candata();
 
 // Constants
 const short SEND_FLAG =_CAN_TX_PRIORITY_0 & _CAN_TX_NO_RTR_FRAME;
-const int NUMBER_OF_CELLS = 18; // the number of battery cells to check
 const long CAN_ADDRESS = 0x88; // the address of this can message
 const unsigned int COUNTER_OVERFLOW = 38; 
         // the "check_bms" flag is set after Timer0 overflows this many times
@@ -61,6 +60,12 @@ const unsigned char BMS_V3_B2 = 12;
 const unsigned char BMS_V4_B1 = 15;
 const unsigned char BMS_V4_B2 = 16;
 
+// set up the cell ids to query, currently hard coded so would require a
+// software update if the BMS cell groupings or IDs were changed
+const int NUMBER_OF_CELLS = 18; // the number of battery cells to check
+const int CELL_IDS[] = { 
+          7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24 
+};
 
 // global flags and counters for use with interrupts
 volatile unsigned int tx_counter; // counter used for TMR0 overflow
@@ -71,11 +76,13 @@ unsigned char flag_send_can; // flag set when we have a message to send
 
 // other global variables
 int current_cell; // the current cell we are querying
+int temp; // temp int variable for calculations etc
 unsigned char CAN_data[8];
 unsigned char BMS_buffer[BMS_QUERY_LENGTH]; // an array to hold our BMS buffer
 unsigned char BMS_buffer_idx; // our current position in the BMS buffer
 unsigned char aborted_bms_checks; // the number of consecutive BMS checks skipped
                                   // because we were waiting on serial data
+
 
 /**
 *  The main loop - checks the status of interrupt flags and actions
@@ -128,21 +135,19 @@ void main() {
 
                 // now we need to check the next BMS cell
                 current_cell++; // move to the next cell
-                if(current_cell > NUMBER_OF_CELLS)
+                if(current_cell >= NUMBER_OF_CELLS)
                 {
-                    current_cell = 1; // move back to the first cell
+                    current_cell = 0; // move back to the first cell
                 }
                 
                 // query the battery - start by sending the start bits
-                PORTC.B4 = 1;
-                TXREG = 0x01010101;
-                PORTC.B4 = 0;
-                //UART1_Write(BMS_QUERY_BIT_1);
-                //UART1_Write(BMS_QUERY_BIT_2);
+                UART1_Write(BMS_QUERY_BIT_1);
+                UART1_Write(BMS_QUERY_BIT_2);
 
                 // now send the cell group number we are querying (sent twice)
-                //UART1_Write(current_cell);
-                //UART1_Write(current_cell);
+                UART1_Write(CELL_IDS[current_cell]);
+                UART1_Write(CELL_IDS[current_cell]);
+                PORTC.B4 = ~PORTC.B4;
             }
             
             flag_check_bms = 0x00; // reset the BMS flag
@@ -160,17 +165,29 @@ void main() {
             {
                 // build up the CAN_data based on what we recieved from the BMS
                 // we need to divide by 256 to convert from 16bit to 8 bit;
-                CAN_data[V1_bit] = ((BMS_buffer[BMS_V1_B2] << 8) &
+                CAN_data[0] = current_cell;
+                temp = ((BMS_buffer[BMS_V1_B2] << 8) &
                                         BMS_buffer[BMS_V1_B1]) / 256;
-                CAN_data[V2_bit] = ((BMS_buffer[BMS_V2_B2] << 8) &
-                                        BMS_buffer[BMS_V2_B1]) / 256;
-                CAN_data[V3_bit] = ((BMS_buffer[BMS_V3_B2] << 8) &
+                CAN_data[V1_bit] = temp >> 8;
+                CAN_data[V1_bit+1] = temp & 0x00FF;
+
+                temp = ((BMS_buffer[BMS_V1_B2] << 8) &
+                                        BMS_buffer[BMS_V1_B1]) / 256;
+                CAN_data[V2_bit] = temp >> 8;
+                CAN_data[V2_bit+1] = temp & 0x00FF;
+                
+                temp = ((BMS_buffer[BMS_V3_B2] << 8) &
                                         BMS_buffer[BMS_V3_B1]) / 256;
-                CAN_data[V4_bit] = ((BMS_buffer[BMS_V4_B2] << 8) &
+                CAN_data[V3_bit] = temp >> 8;
+                CAN_data[V3_bit+1] = temp & 0x00FF;
+                
+                temp = ((BMS_buffer[BMS_V4_B2] << 8) &
                                         BMS_buffer[BMS_V4_B1]) / 256;
+                CAN_data[V4_bit] = temp >> 8;
+                CAN_data[V4_bit+1] = temp & 0x00FF;
+                
                 flag_send_can = 0x01; // as we have received a full buffer
                                       // we can send a CAN message
-
             }
         }
 
@@ -179,6 +196,9 @@ void main() {
         {
             // send the message
             CanWrite(CAN_ADDRESS, CAN_data, 1, SEND_FLAG);
+
+            // toggle the LED to show we are sending CAN data
+            PORTC.B5 = ~PORTC.B5;
             
             // reset the flags and counters
             BMS_buffer_idx = 0;
@@ -327,7 +347,7 @@ void setup()
     RCSTA.CREN = 1; // enable receival
     TXSTA.TX9 = 0; // 8 bit transmission
     RCSTA.RX9 = 0; // 8 bit reception
-    //UART1_init(19200);
+    UART1_init(19200);
 
     // set up the can module
     TRISB.B3 = 1; // set CANRX for outputting transmission
@@ -352,5 +372,5 @@ void setup()
     flag_lvp = 0; // no lvp problem
     flag_check_bms = 0; // don't check BMS
     flag_send_can = 0; // no can messages to send yet
-    current_cell = 1; // start by querying cell #1
+    current_cell = 0; // start by querying cell #1
 }

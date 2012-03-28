@@ -8,7 +8,6 @@ void reset_candata();
 
 
 const short SEND_FLAG =_CAN_TX_PRIORITY_0 & _CAN_TX_NO_RTR_FRAME;
-const int NUMBER_OF_CELLS = 18;
 const long CAN_ADDRESS = 0x88;
 const unsigned int COUNTER_OVERFLOW = 38;
 
@@ -40,6 +39,12 @@ const unsigned char BMS_V4_B2 = 16;
 
 
 
+const int NUMBER_OF_CELLS = 18;
+const int CELL_IDS[] = {
+ 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24
+};
+
+
 volatile unsigned int tx_counter;
 volatile unsigned char flag_ovp;
 volatile unsigned char flag_lvp;
@@ -48,11 +53,12 @@ unsigned char flag_send_can;
 
 
 int current_cell;
+int temp;
 unsigned char CAN_data[8];
 unsigned char BMS_buffer[BMS_QUERY_LENGTH];
 unsigned char BMS_buffer_idx;
 unsigned char aborted_bms_checks;
-#line 87 "C:/Users/mecharius/Dropbox/Projects/HXN-5 BMStoCAN/Code/BMSToucan.c"
+#line 94 "C:/Users/mecharius/Dropbox/Projects/HXN-5 BMStoCAN/Code/BMSToucan.c"
 void main() {
 
  setup();
@@ -97,21 +103,19 @@ void main() {
 
 
  current_cell++;
- if(current_cell > NUMBER_OF_CELLS)
+ if(current_cell >= NUMBER_OF_CELLS)
  {
- current_cell = 1;
+ current_cell = 0;
  }
 
 
- PORTC.B4 = 1;
- TXREG = 0x01010101;
- PORTC.B4 = 0;
+ UART1_Write(BMS_QUERY_BIT_1);
+ UART1_Write(BMS_QUERY_BIT_2);
 
 
-
-
-
-
+ UART1_Write(CELL_IDS[current_cell]);
+ UART1_Write(CELL_IDS[current_cell]);
+ PORTC.B4 = ~PORTC.B4;
  }
 
  flag_check_bms = 0x00;
@@ -129,16 +133,29 @@ void main() {
  {
 
 
- CAN_data[V1_bit] = ((BMS_buffer[BMS_V1_B2] << 8) &
+ CAN_data[0] = current_cell;
+ temp = ((BMS_buffer[BMS_V1_B2] << 8) &
  BMS_buffer[BMS_V1_B1]) / 256;
- CAN_data[V2_bit] = ((BMS_buffer[BMS_V2_B2] << 8) &
- BMS_buffer[BMS_V2_B1]) / 256;
- CAN_data[V3_bit] = ((BMS_buffer[BMS_V3_B2] << 8) &
- BMS_buffer[BMS_V3_B1]) / 256;
- CAN_data[V4_bit] = ((BMS_buffer[BMS_V4_B2] << 8) &
- BMS_buffer[BMS_V4_B1]) / 256;
- flag_send_can = 0x01;
+ CAN_data[V1_bit] = temp >> 8;
+ CAN_data[V1_bit+1] = temp & 0x00FF;
 
+
+ temp = ((BMS_buffer[BMS_V1_B2] << 8) &
+ BMS_buffer[BMS_V1_B1]) / 256;
+ CAN_data[V2_bit] = temp >> 8;
+ CAN_data[V2_bit+1] = temp & 0x00FF;
+
+ temp = ((BMS_buffer[BMS_V3_B2] << 8) &
+ BMS_buffer[BMS_V3_B1]) / 256;
+ CAN_data[V3_bit] = temp >> 8;
+ CAN_data[V3_bit+1] = temp & 0x00FF;
+
+ temp = ((BMS_buffer[BMS_V4_B2] << 8) &
+ BMS_buffer[BMS_V4_B1]) / 256;
+ CAN_data[V4_bit] = temp >> 8;
+ CAN_data[V4_bit+1] = temp & 0x00FF;
+
+ flag_send_can = 0x01;
 
  }
  }
@@ -150,12 +167,15 @@ void main() {
  CanWrite(CAN_ADDRESS, CAN_data, 1, SEND_FLAG);
 
 
+ PORTC.B5 = ~PORTC.B5;
+
+
  BMS_buffer_idx = 0;
  flag_send_can = 0x00;
  }
  }
 }
-#line 196 "C:/Users/mecharius/Dropbox/Projects/HXN-5 BMStoCAN/Code/BMSToucan.c"
+#line 217 "C:/Users/mecharius/Dropbox/Projects/HXN-5 BMStoCAN/Code/BMSToucan.c"
 void ISR() iv 0x0008
 {
 
@@ -184,7 +204,7 @@ void ISR() iv 0x0008
  INTCON.TMR0IF = 0;
  }
 }
-#line 234 "C:/Users/mecharius/Dropbox/Projects/HXN-5 BMStoCAN/Code/BMSToucan.c"
+#line 255 "C:/Users/mecharius/Dropbox/Projects/HXN-5 BMStoCAN/Code/BMSToucan.c"
 void CANbus_setup()
 {
  char SJW, BRP, Phase_Seg1, Phase_Seg2, Prop_Seg, txt[4];
@@ -226,7 +246,7 @@ void CANbus_setup()
 
  CANSetOperationMode(_CAN_MODE_NORMAL, 0xFF);
 }
-#line 280 "C:/Users/mecharius/Dropbox/Projects/HXN-5 BMStoCAN/Code/BMSToucan.c"
+#line 301 "C:/Users/mecharius/Dropbox/Projects/HXN-5 BMStoCAN/Code/BMSToucan.c"
 void reset_candata()
 {
  int i;
@@ -235,7 +255,7 @@ void reset_candata()
  CAN_data[i] = 0;
  }
 }
-#line 294 "C:/Users/mecharius/Dropbox/Projects/HXN-5 BMStoCAN/Code/BMSToucan.c"
+#line 315 "C:/Users/mecharius/Dropbox/Projects/HXN-5 BMStoCAN/Code/BMSToucan.c"
 void setup()
 {
 
@@ -272,7 +292,7 @@ void setup()
  RCSTA.CREN = 1;
  TXSTA.TX9 = 0;
  RCSTA.RX9 = 0;
-
+ UART1_init(19200);
 
 
  TRISB.B3 = 1;
@@ -297,5 +317,5 @@ void setup()
  flag_lvp = 0;
  flag_check_bms = 0;
  flag_send_can = 0;
- current_cell = 1;
+ current_cell = 0;
 }
