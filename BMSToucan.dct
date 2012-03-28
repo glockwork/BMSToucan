@@ -433,6 +433,8 @@ ccpr1l
 ceil
 cell_ids
 cell_num_bit
+cell_values
+cells_per_group
 cf_detect
 cf_disable
 cf_enable

@@ -21,6 +21,9 @@
 *   a cell reading of 8.55v.
 */
 
+// define some macros for getting HIGH/LOW bytes quickly
+#define HIGH(X) ((X) >> 8)
+#define LOW(X) ((X) & 0xFF)
 
 // forward function declarations
 void setup();
@@ -63,9 +66,11 @@ const unsigned char BMS_V4_B2 = 16;
 // set up the cell ids to query, currently hard coded so would require a
 // software update if the BMS cell groupings or IDs were changed
 const int NUMBER_OF_CELLS = 18; // the number of battery cells to check
+const int CELLS_PER_GROUP = 4; // the number of cells in each group
 const int CELL_IDS[] = { 
           7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24 
 };
+int cell_values[NUMBER_OF_CELLS][CELLS_PER_GROUP]; // for storing the last cell vals
 
 // global flags and counters for use with interrupts
 volatile unsigned int tx_counter; // counter used for TMR0 overflow
@@ -98,7 +103,6 @@ void main() {
     // main loop
     for(;;)
     {
-
         // clear previous CAN_data[] values
         reset_candata();
 
@@ -166,25 +170,25 @@ void main() {
                 // build up the CAN_data based on what we recieved from the BMS
                 // we need to divide by 256 to convert from 16bit to 8 bit;
                 CAN_data[0] = current_cell;
-                temp = ((BMS_buffer[BMS_V1_B2] << 8) &
-                                        BMS_buffer[BMS_V1_B1]) / 256;
-                CAN_data[V1_bit] = temp >> 8;
-                CAN_data[V1_bit+1] = temp & 0x00FF;
+                cell_values[current_cell][0] = ((BMS_buffer[BMS_V1_B2] << 8) &
+                                             BMS_buffer[BMS_V1_B1]) / 256;
+                CAN_data[V1_bit] = HIGH(cell_values[current_cell][0]);
+                CAN_data[V1_bit+1] = LOW(cell_values[current_cell][0]);
 
-                temp = ((BMS_buffer[BMS_V1_B2] << 8) &
-                                        BMS_buffer[BMS_V1_B1]) / 256;
-                CAN_data[V2_bit] = temp >> 8;
-                CAN_data[V2_bit+1] = temp & 0x00FF;
+                cell_values[current_cell][1] = ((BMS_buffer[BMS_V1_B2] << 8) &
+                                             BMS_buffer[BMS_V1_B1]) / 256;
+                CAN_data[V2_bit] = HIGH(cell_values[current_cell][1]);
+                CAN_data[V2_bit+1] = LOW(cell_values[current_cell][1]);
                 
-                temp = ((BMS_buffer[BMS_V3_B2] << 8) &
-                                        BMS_buffer[BMS_V3_B1]) / 256;
-                CAN_data[V3_bit] = temp >> 8;
-                CAN_data[V3_bit+1] = temp & 0x00FF;
+                cell_values[current_cell][2] = ((BMS_buffer[BMS_V3_B2] << 8) &
+                                             BMS_buffer[BMS_V3_B1]) / 256;
+                CAN_data[V3_bit] = HIGH(cell_values[current_cell][2]);
+                CAN_data[V3_bit+1] = LOW(cell_values[current_cell][2]);
                 
-                temp = ((BMS_buffer[BMS_V4_B2] << 8) &
-                                        BMS_buffer[BMS_V4_B1]) / 256;
-                CAN_data[V4_bit] = temp >> 8;
-                CAN_data[V4_bit+1] = temp & 0x00FF;
+                cell_values[current_cell][3] = ((BMS_buffer[BMS_V4_B2] << 8) &
+                                             BMS_buffer[BMS_V4_B1]) / 256;
+                CAN_data[V4_bit] = HIGH(cell_values[current_cell][3]);
+                CAN_data[V4_bit+1] = LOW(cell_values[current_cell][3]);
                 
                 flag_send_can = 0x01; // as we have received a full buffer
                                       // we can send a CAN message

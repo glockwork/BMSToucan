@@ -1,5 +1,5 @@
 #line 1 "C:/Users/mecharius/Dropbox/Projects/HXN-5 BMStoCAN/Code/BMSToucan.c"
-#line 26 "C:/Users/mecharius/Dropbox/Projects/HXN-5 BMStoCAN/Code/BMSToucan.c"
+#line 29 "C:/Users/mecharius/Dropbox/Projects/HXN-5 BMStoCAN/Code/BMSToucan.c"
 void setup();
 void ISR();
 void CANbus_setup();
@@ -40,9 +40,11 @@ const unsigned char BMS_V4_B2 = 16;
 
 
 const int NUMBER_OF_CELLS = 18;
+const int CELLS_PER_GROUP = 4;
 const int CELL_IDS[] = {
  7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24
 };
+int cell_values[NUMBER_OF_CELLS][CELLS_PER_GROUP];
 
 
 volatile unsigned int tx_counter;
@@ -58,7 +60,7 @@ unsigned char CAN_data[8];
 unsigned char BMS_buffer[BMS_QUERY_LENGTH];
 unsigned char BMS_buffer_idx;
 unsigned char aborted_bms_checks;
-#line 94 "C:/Users/mecharius/Dropbox/Projects/HXN-5 BMStoCAN/Code/BMSToucan.c"
+#line 99 "C:/Users/mecharius/Dropbox/Projects/HXN-5 BMStoCAN/Code/BMSToucan.c"
 void main() {
 
  setup();
@@ -66,7 +68,6 @@ void main() {
 
  for(;;)
  {
-
 
  reset_candata();
 
@@ -134,26 +135,25 @@ void main() {
 
 
  CAN_data[0] = current_cell;
- temp = ((BMS_buffer[BMS_V1_B2] << 8) &
+ cell_values[current_cell][0] = ((BMS_buffer[BMS_V1_B2] << 8) &
  BMS_buffer[BMS_V1_B1]) / 256;
- CAN_data[V1_bit] = temp >> 8;
- CAN_data[V1_bit+1] = temp & 0x00FF;
+ CAN_data[V1_bit] =  ((cell_values[current_cell][0]) >> 8) ;
+ CAN_data[V1_bit+1] =  ((cell_values[current_cell][0]) & 0xFF) ;
 
-
- temp = ((BMS_buffer[BMS_V1_B2] << 8) &
+ cell_values[current_cell][1] = ((BMS_buffer[BMS_V1_B2] << 8) &
  BMS_buffer[BMS_V1_B1]) / 256;
- CAN_data[V2_bit] = temp >> 8;
- CAN_data[V2_bit+1] = temp & 0x00FF;
+ CAN_data[V2_bit] =  ((cell_values[current_cell][1]) >> 8) ;
+ CAN_data[V2_bit+1] =  ((cell_values[current_cell][1]) & 0xFF) ;
 
- temp = ((BMS_buffer[BMS_V3_B2] << 8) &
+ cell_values[current_cell][2] = ((BMS_buffer[BMS_V3_B2] << 8) &
  BMS_buffer[BMS_V3_B1]) / 256;
- CAN_data[V3_bit] = temp >> 8;
- CAN_data[V3_bit+1] = temp & 0x00FF;
+ CAN_data[V3_bit] =  ((cell_values[current_cell][2]) >> 8) ;
+ CAN_data[V3_bit+1] =  ((cell_values[current_cell][2]) & 0xFF) ;
 
- temp = ((BMS_buffer[BMS_V4_B2] << 8) &
+ cell_values[current_cell][3] = ((BMS_buffer[BMS_V4_B2] << 8) &
  BMS_buffer[BMS_V4_B1]) / 256;
- CAN_data[V4_bit] = temp >> 8;
- CAN_data[V4_bit+1] = temp & 0x00FF;
+ CAN_data[V4_bit] =  ((cell_values[current_cell][3]) >> 8) ;
+ CAN_data[V4_bit+1] =  ((cell_values[current_cell][3]) & 0xFF) ;
 
  flag_send_can = 0x01;
 
@@ -175,7 +175,7 @@ void main() {
  }
  }
 }
-#line 217 "C:/Users/mecharius/Dropbox/Projects/HXN-5 BMStoCAN/Code/BMSToucan.c"
+#line 220 "C:/Users/mecharius/Dropbox/Projects/HXN-5 BMStoCAN/Code/BMSToucan.c"
 void ISR() iv 0x0008
 {
 
@@ -204,7 +204,7 @@ void ISR() iv 0x0008
  INTCON.TMR0IF = 0;
  }
 }
-#line 255 "C:/Users/mecharius/Dropbox/Projects/HXN-5 BMStoCAN/Code/BMSToucan.c"
+#line 258 "C:/Users/mecharius/Dropbox/Projects/HXN-5 BMStoCAN/Code/BMSToucan.c"
 void CANbus_setup()
 {
  char SJW, BRP, Phase_Seg1, Phase_Seg2, Prop_Seg, txt[4];
@@ -246,7 +246,7 @@ void CANbus_setup()
 
  CANSetOperationMode(_CAN_MODE_NORMAL, 0xFF);
 }
-#line 301 "C:/Users/mecharius/Dropbox/Projects/HXN-5 BMStoCAN/Code/BMSToucan.c"
+#line 304 "C:/Users/mecharius/Dropbox/Projects/HXN-5 BMStoCAN/Code/BMSToucan.c"
 void reset_candata()
 {
  int i;
@@ -255,7 +255,7 @@ void reset_candata()
  CAN_data[i] = 0;
  }
 }
-#line 315 "C:/Users/mecharius/Dropbox/Projects/HXN-5 BMStoCAN/Code/BMSToucan.c"
+#line 318 "C:/Users/mecharius/Dropbox/Projects/HXN-5 BMStoCAN/Code/BMSToucan.c"
 void setup()
 {
 
