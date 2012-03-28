@@ -16,9 +16,10 @@
 *     -  B1:  LVP problem if set
 *     -  B2:  Comms issues (exceeded MAX_BMS_CHECK_ABORTS) if set
 *
-*   Cell voltages are from 0-255, with a multiplier of 0.05 (e.g. a value of
-*   0xAB is equal to 171 decimal, when multiplied by 0.05 this corresponds to
-*   a cell reading of 8.55v.
+*   Cell voltages are given from 0-255, which is a % of the maximum cell voltage
+*   of 5V. For example, a value of 0xAB is equal to 171 decimal.  The actual voltage
+*   is obtained by dividing by 255 and multiplying by V_max, 5V.  0xAB therefore
+*   corresponds to 3.35V
 */
 
 // forward function declarations
@@ -116,7 +117,7 @@ void main() {
             // we have found an OVP problem - set the appropriate CAN byte
             CAN_data[BMS_ERROR_BIT].B0 = 1;
         }
-        if (flag_lvp = 0x01) {
+        if (flag_lvp == 0x01) {
             // we have found an LVP problem - set the appropriate CAN byte
             CAN_data[BMS_ERROR_BIT].B1 = 1;
         }
@@ -222,12 +223,6 @@ void main() {
         // write the CAN message if it is ready
         if(flag_send_can == 0x01)
         {
-            /* TEMP DEBUG */
-            for (zz = 0; zz < 8; zz++)
-            {
-                UART1_Write(CAN_data[zz]);
-            }
-            
             // send the message
             CanWrite(CAN_ADDRESS, CAN_data, 1, SEND_FLAG);
 
