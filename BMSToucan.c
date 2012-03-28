@@ -115,10 +115,12 @@ void main() {
         // check for flags
         if (flag_ovp == 0x01) {
             // we have found an OVP problem - set the appropriate CAN byte
+            // do not reset this flag until restart
             CAN_data[BMS_ERROR_BIT].B0 = 1;
         }
         if (flag_lvp == 0x01) {
             // we have found an LVP problem - set the appropriate CAN byte
+            // do not reset this flag until restart
             CAN_data[BMS_ERROR_BIT].B1 = 1;
         }
 
@@ -128,17 +130,18 @@ void main() {
             // BMS Query.  If we are then abort this check and increment
             // our "aborted_bms_checks" counter.  If this counter reaches
             // MAX_BMS_CHECK_ABORTS we have had an error
-            if (BMS_buffer_idx > 0)
+            if (BMS_buffer_idx > 0) // some data has been received but not all
             {
-                aborted_bms_checks++;
+                aborted_bms_checks++; // increment the number of aborted checks
                 
-                // check if we have a timeout error
+                // check if we have a timeout error, by exceeding max abort checks
                 if (aborted_bms_checks > MAX_BMS_CHECK_ABORTS)
                 {
                     // send a comms error flag, then reset our buffer position
-                    CAN_data[BMS_ERROR_BIT].B2 = 1;
-                    aborted_bms_checks = 0;
-                    BMS_buffer_idx = 0;
+                    CAN_data[BMS_ERROR_BIT].B2 = 1; // set the comms error flag
+                    CAN_data[0] = CELL_IDS[current_cell]; // set the cell number
+                    aborted_bms_checks = 0; // reset the abort counter
+                    flag_send_can = 0x01;  // send an error onto CAN
                 }
             } else {
                 aborted_bms_checks = 0; // no checks have been aborted
@@ -164,60 +167,60 @@ void main() {
         }
         
         // read serial information if we have any
-        if(UART1_Data_ready())
+        while(UART1_Data_ready() && BMS_buffer_idx < BMS_QUERY_LENGTH)
         {
-            // read a serial byte
+            // read a serial byte until we fill our buffer up
             BMS_buffer[BMS_buffer_idx] = UART1_read();
             BMS_buffer_idx++;
-            
-            // check if we have read a whole message
-            if (BMS_buffer_idx == BMS_QUERY_LENGTH)
-            {
-                // save the cell group numner to the can_data
-                CAN_data[0] = CELL_IDS[current_cell];
+        }
+        
+        // check if we have read a whole message... if we have decode and send
+        if (BMS_buffer_idx == BMS_QUERY_LENGTH)
+        {
+            // save the cell group numner to the can_data
+            CAN_data[0] = CELL_IDS[current_cell];
 
-                // build up the CAN_data based on what we recieved from the BMS.
-                // The value may look like A2 02 from the BMS, which is interpreted
-                // as a 16 bit int (0x02A2).  This value * 0.005 is the raw voltage
-                // of the cell.  This is then converted to a % of V_max (5V) in
-                // an 8 bit char.  This whole process is achieved by multiplying
-                // the initial BMS value by 0.255
-                cell_values[current_cell][0] = 
-                    (char)(
-                        (float)(
-                            (BMS_buffer[BMS_V1_B2] << 8) | BMS_buffer[BMS_V1_B1]
-                        ) * CELL_V_MULTIPLIER
-                    );
-                CAN_data[V1_bit] = cell_values[current_cell][0];
-                
-                cell_values[current_cell][1] =
-                    (char)(
-                        (float)(
-                            (BMS_buffer[BMS_V2_B2] << 8) | BMS_buffer[BMS_V2_B1]
-                        ) * CELL_V_MULTIPLIER
-                    );
-                CAN_data[V2_bit] = cell_values[current_cell][1];
-                
-                cell_values[current_cell][2] =
-                    (char)(
-                        (float)(
-                            (BMS_buffer[BMS_V3_B2] << 8) | BMS_buffer[BMS_V3_B1]
-                        ) * CELL_V_MULTIPLIER
-                    );
-                CAN_data[V3_bit] = cell_values[current_cell][2];
-                
-                cell_values[current_cell][3] =
-                    (char)(
-                        (float)(
-                            (BMS_buffer[BMS_V4_B2] << 8) | BMS_buffer[BMS_V4_B1]
-                        ) * CELL_V_MULTIPLIER
-                    );
-                CAN_data[V4_bit] = cell_values[current_cell][3];
-                
-                // as we have filled and decoded our serial receive buffer,
-                // we can set the flag so a CAN message is sent
-                flag_send_can = 0x01;
-            }
+            // build up the CAN_data based on what we recieved from the BMS.
+            // The value may look like A2 02 from the BMS, which is interpreted
+            // as a 16 bit int (0x02A2).  This value * 0.005 is the raw voltage
+            // of the cell.  This is then converted to a % of V_max (5V) in
+            // an 8 bit char.  This whole process is achieved by multiplying
+            // the initial BMS value by 0.255
+            cell_values[current_cell][0] = 
+                (char)(
+                    (float)(
+                        (BMS_buffer[BMS_V1_B2] << 8) | BMS_buffer[BMS_V1_B1]
+                    ) * CELL_V_MULTIPLIER
+                );
+            CAN_data[V1_bit] = cell_values[current_cell][0];
+            
+            cell_values[current_cell][1] =
+                (char)(
+                    (float)(
+                        (BMS_buffer[BMS_V2_B2] << 8) | BMS_buffer[BMS_V2_B1]
+                    ) * CELL_V_MULTIPLIER
+                );
+            CAN_data[V2_bit] = cell_values[current_cell][1];
+            
+            cell_values[current_cell][2] =
+                (char)(
+                    (float)(
+                        (BMS_buffer[BMS_V3_B2] << 8) | BMS_buffer[BMS_V3_B1]
+                    ) * CELL_V_MULTIPLIER
+                );
+            CAN_data[V3_bit] = cell_values[current_cell][2];
+            
+            cell_values[current_cell][3] =
+                (char)(
+                    (float)(
+                        (BMS_buffer[BMS_V4_B2] << 8) | BMS_buffer[BMS_V4_B1]
+                    ) * CELL_V_MULTIPLIER
+                );
+            CAN_data[V4_bit] = cell_values[current_cell][3];
+            
+            // as we have filled and decoded our serial receive buffer,
+            // we can set the flag so a CAN message is sent
+            flag_send_can = 0x01;
         }
 
         // write the CAN message if it is ready

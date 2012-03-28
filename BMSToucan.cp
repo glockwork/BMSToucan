@@ -85,9 +85,11 @@ void main() {
 
  if (flag_ovp == 0x01) {
 
+
  CAN_data[BMS_ERROR_BIT].B0 = 1;
  }
  if (flag_lvp == 0x01) {
+
 
  CAN_data[BMS_ERROR_BIT].B1 = 1;
  }
@@ -107,8 +109,9 @@ void main() {
  {
 
  CAN_data[BMS_ERROR_BIT].B2 = 1;
+ CAN_data[0] = CELL_IDS[current_cell];
  aborted_bms_checks = 0;
- BMS_buffer_idx = 0;
+ flag_send_can = 0x01;
  }
  } else {
  aborted_bms_checks = 0;
@@ -134,11 +137,12 @@ void main() {
  }
 
 
- if(UART1_Data_ready())
+ while(UART1_Data_ready() && BMS_buffer_idx < BMS_QUERY_LENGTH)
  {
 
  BMS_buffer[BMS_buffer_idx] = UART1_read();
  BMS_buffer_idx++;
+ }
 
 
  if (BMS_buffer_idx == BMS_QUERY_LENGTH)
@@ -188,7 +192,6 @@ void main() {
 
  flag_send_can = 0x01;
  }
- }
 
 
  if(flag_send_can == 0x01)
@@ -205,7 +208,7 @@ void main() {
  }
  }
 }
-#line 245 "C:/Users/mecharius/Dropbox/Projects/HXN-5 BMStoCAN/Code/BMSToucan.c"
+#line 248 "C:/Users/mecharius/Dropbox/Projects/HXN-5 BMStoCAN/Code/BMSToucan.c"
 void ISR() iv 0x0008
 {
 
@@ -234,7 +237,7 @@ void ISR() iv 0x0008
  INTCON.TMR0IF = 0;
  }
 }
-#line 283 "C:/Users/mecharius/Dropbox/Projects/HXN-5 BMStoCAN/Code/BMSToucan.c"
+#line 286 "C:/Users/mecharius/Dropbox/Projects/HXN-5 BMStoCAN/Code/BMSToucan.c"
 void CANbus_setup()
 {
  char SJW, BRP, Phase_Seg1, Phase_Seg2, Prop_Seg, txt[4];
@@ -276,7 +279,7 @@ void CANbus_setup()
 
  CANSetOperationMode(_CAN_MODE_NORMAL, 0xFF);
 }
-#line 329 "C:/Users/mecharius/Dropbox/Projects/HXN-5 BMStoCAN/Code/BMSToucan.c"
+#line 332 "C:/Users/mecharius/Dropbox/Projects/HXN-5 BMStoCAN/Code/BMSToucan.c"
 void reset_candata()
 {
  int i;
@@ -285,7 +288,7 @@ void reset_candata()
  CAN_data[i] = 0;
  }
 }
-#line 343 "C:/Users/mecharius/Dropbox/Projects/HXN-5 BMStoCAN/Code/BMSToucan.c"
+#line 346 "C:/Users/mecharius/Dropbox/Projects/HXN-5 BMStoCAN/Code/BMSToucan.c"
 void setup()
 {
 
