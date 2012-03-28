@@ -21,10 +21,6 @@
 *   a cell reading of 8.55v.
 */
 
-// define some macros for getting HIGH/LOW bytes quickly
-#define HIGH(X) ((X) >> 8)
-#define LOW(X) ((X) & 0xFF)
-
 // forward function declarations
 void setup();
 void ISR();
@@ -54,14 +50,14 @@ const unsigned char MAX_BMS_CHECK_ABORTS = 10;
                         // the number of times we can abort a BMS check whilst
                         // waiting for BMS data.  Beyond this number of aborts
                         // we can assume a timeout error has occurred
-const unsigned char BMS_V1_B1 = 3;  // the BMS bytes to read to build our voltage
-const unsigned char BMS_V1_B2 = 4;
-const unsigned char BMS_V2_B1 = 7;
-const unsigned char BMS_V2_B2 = 8;
-const unsigned char BMS_V3_B1 = 11;
-const unsigned char BMS_V3_B2 = 12;
-const unsigned char BMS_V4_B1 = 15;
-const unsigned char BMS_V4_B2 = 16;
+const unsigned char BMS_V1_B1 = 2;  // the BMS bytes to read to build our voltage
+const unsigned char BMS_V1_B2 = 3;
+const unsigned char BMS_V2_B1 = 6;
+const unsigned char BMS_V2_B2 = 7;
+const unsigned char BMS_V3_B1 = 10;
+const unsigned char BMS_V3_B2 = 11;
+const unsigned char BMS_V4_B1 = 14;
+const unsigned char BMS_V4_B2 = 15;
 
 // set up the cell ids to query, currently hard coded so would require a
 // software update if the BMS cell groupings or IDs were changed
@@ -71,6 +67,10 @@ const int CELL_IDS[] = {
           7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24 
 };
 int cell_values[NUMBER_OF_CELLS][CELLS_PER_GROUP]; // for storing the last cell vals
+const float CELL_V_MULTIPLIER = 0.255; // multiply the 16 bit val by this to
+                                       // get the 8 bit char version
+                                       // this is 16 bit int
+                                       //          * 0.005 / V_max (5v) * 255
 
 // global flags and counters for use with interrupts
 volatile unsigned int tx_counter; // counter used for TMR0 overflow
@@ -81,13 +81,14 @@ unsigned char flag_send_can; // flag set when we have a message to send
 
 // other global variables
 int current_cell; // the current cell we are querying
-int temp; // temp int variable for calculations etc
 unsigned char CAN_data[8];
 unsigned char BMS_buffer[BMS_QUERY_LENGTH]; // an array to hold our BMS buffer
 unsigned char BMS_buffer_idx; // our current position in the BMS buffer
 unsigned char aborted_bms_checks; // the number of consecutive BMS checks skipped
                                   // because we were waiting on serial data
 
+// TEMP DEBUG
+int zz;
 
 /**
 *  The main loop - checks the status of interrupt flags and actions
@@ -99,6 +100,10 @@ unsigned char aborted_bms_checks; // the number of consecutive BMS checks skippe
 void main() {
     // perform setup
     setup();
+
+    // turn off the status LEDs to show we are into the main loop
+    PORTC.B4 = 0;
+    PORTC.B5 = 0;
     
     // main loop
     for(;;)
@@ -167,37 +172,62 @@ void main() {
             // check if we have read a whole message
             if (BMS_buffer_idx == BMS_QUERY_LENGTH)
             {
-                // build up the CAN_data based on what we recieved from the BMS
-                // we need to divide by 256 to convert from 16bit to 8 bit;
-                CAN_data[0] = current_cell;
-                cell_values[current_cell][0] = ((BMS_buffer[BMS_V1_B2] << 8) &
-                                             BMS_buffer[BMS_V1_B1]) / 256;
-                CAN_data[V1_bit] = HIGH(cell_values[current_cell][0]);
-                CAN_data[V1_bit+1] = LOW(cell_values[current_cell][0]);
+                // save the cell group numner to the can_data
+                CAN_data[0] = CELL_IDS[current_cell];
 
-                cell_values[current_cell][1] = ((BMS_buffer[BMS_V1_B2] << 8) &
-                                             BMS_buffer[BMS_V1_B1]) / 256;
-                CAN_data[V2_bit] = HIGH(cell_values[current_cell][1]);
-                CAN_data[V2_bit+1] = LOW(cell_values[current_cell][1]);
+                // build up the CAN_data based on what we recieved from the BMS.
+                // The value may look like A2 02 from the BMS, which is interpreted
+                // as a 16 bit int (0x02A2).  This value * 0.005 is the raw voltage
+                // of the cell.  This is then converted to a % of V_max (5V) in
+                // an 8 bit char.  This whole process is achieved by multiplying
+                // the initial BMS value by 0.255
+                cell_values[current_cell][0] = 
+                    (char)(
+                        (float)(
+                            (BMS_buffer[BMS_V1_B2] << 8) | BMS_buffer[BMS_V1_B1]
+                        ) * CELL_V_MULTIPLIER
+                    );
+                CAN_data[V1_bit] = cell_values[current_cell][0];
                 
-                cell_values[current_cell][2] = ((BMS_buffer[BMS_V3_B2] << 8) &
-                                             BMS_buffer[BMS_V3_B1]) / 256;
-                CAN_data[V3_bit] = HIGH(cell_values[current_cell][2]);
-                CAN_data[V3_bit+1] = LOW(cell_values[current_cell][2]);
+                cell_values[current_cell][1] =
+                    (char)(
+                        (float)(
+                            (BMS_buffer[BMS_V2_B2] << 8) | BMS_buffer[BMS_V2_B1]
+                        ) * CELL_V_MULTIPLIER
+                    );
+                CAN_data[V2_bit] = cell_values[current_cell][1];
                 
-                cell_values[current_cell][3] = ((BMS_buffer[BMS_V4_B2] << 8) &
-                                             BMS_buffer[BMS_V4_B1]) / 256;
-                CAN_data[V4_bit] = HIGH(cell_values[current_cell][3]);
-                CAN_data[V4_bit+1] = LOW(cell_values[current_cell][3]);
+                cell_values[current_cell][2] =
+                    (char)(
+                        (float)(
+                            (BMS_buffer[BMS_V3_B2] << 8) | BMS_buffer[BMS_V3_B1]
+                        ) * CELL_V_MULTIPLIER
+                    );
+                CAN_data[V3_bit] = cell_values[current_cell][2];
                 
-                flag_send_can = 0x01; // as we have received a full buffer
-                                      // we can send a CAN message
+                cell_values[current_cell][3] =
+                    (char)(
+                        (float)(
+                            (BMS_buffer[BMS_V4_B2] << 8) | BMS_buffer[BMS_V4_B1]
+                        ) * CELL_V_MULTIPLIER
+                    );
+                CAN_data[V4_bit] = cell_values[current_cell][3];
+                
+                // as we have filled and decoded our serial receive buffer,
+                // we can set the flag so a CAN message is sent
+                flag_send_can = 0x01;
             }
         }
 
         // write the CAN message if it is ready
         if(flag_send_can == 0x01)
         {
+            /* TEMP DEBUG */
+            for (zz = 0; zz < 8; zz++)
+            {
+                UART1_Write(CAN_data[zz]);
+            }
+            
             // send the message
             CanWrite(CAN_ADDRESS, CAN_data, 1, SEND_FLAG);
 
@@ -326,6 +356,10 @@ void setup()
     LATA = 0;
     LATB = 0;
     LATC = 0;
+    
+    // turn on the two status LEDs to show we are starting up
+    PORTC.B4 = 1;
+    PORTC.B5 = 1;
 
     // set up the interrupts for LVP / OVP on rising edge
     INTCON.GIE = 1;    // enable global interrupts
@@ -374,7 +408,7 @@ void setup()
     tx_counter = 0; // reset the transmit counter
     flag_ovp = 0; // no ovp problem
     flag_lvp = 0; // no lvp problem
-    flag_check_bms = 0; // don't check BMS
+    flag_check_bms = 0x01; // check the BMS straight up
     flag_send_can = 0; // no can messages to send yet
     current_cell = 0; // start by querying cell #1
 }
