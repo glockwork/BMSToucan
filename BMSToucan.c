@@ -88,9 +88,6 @@ unsigned char BMS_buffer_idx; // our current position in the BMS buffer
 unsigned char aborted_bms_checks; // the number of consecutive BMS checks skipped
                                   // because we were waiting on serial data
 
-// TEMP DEBUG
-int zz;
-
 /**
 *  The main loop - checks the status of interrupt flags and actions
 *  them if required.  Flags indicate different actions are required:
